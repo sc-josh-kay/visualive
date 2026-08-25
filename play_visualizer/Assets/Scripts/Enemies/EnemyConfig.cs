@@ -85,5 +85,33 @@ namespace PlayVisualizer.Enemies
 
         [Tooltip("Strength of that cohesion pull relative to the seek direction.")]
         public float SwarmCohesionStrength = 0.6f;
+
+        // ── Music reaction (spec8) ──────────────────────────────────────────────
+        // Bounded per-type reactions so each enemy has a musical personality without becoming
+        // unpredictable. Each type only uses the fields for its channel.
+
+        [Header("Music reaction — Color Eater (Energy/Beat)")]
+        [Tooltip("Energy → extra move speed, as a fraction (0.4 = up to +40% at full energy).")]
+        [Range(0f, 1f)] public float EnergySpeedInfluence = 0.4f;
+        [Tooltip("Visual scale bump on each beat (cosmetic; no collider change).")]
+        [Range(0f, 0.6f)] public float BeatPulseScale = 0.18f;
+        [Tooltip("Small forward speed nudge on a beat (units/sec, decays quickly). Along its heading.")]
+        public float BeatImpulse = 2f;
+
+        [Header("Music reaction — Corruptor (Bass)")]
+        [Tooltip("Bass → visual scale 'thump' (cosmetic).")]
+        [Range(0f, 0.8f)] public float BassPulseScale = 0.3f;
+        [Tooltip("Forward lunge speed on a bass onset (units/sec, decays). Along its heading.")]
+        public float BassLungeImpulse = 2.5f;
+        [Tooltip("Bass → temporary extra corruption radius, as a fraction of the current radius (bounded).")]
+        [Range(0f, 0.8f)] public float BassCorruptRadius = 0.35f;
+
+        [Header("Music reaction — Swarm (Treble/Flux)")]
+        [Tooltip("Treble → movement + visual jitter amplitude (bounded 'buzz').")]
+        [Range(0f, 1f)] public float TrebleJitter = 0.35f;
+        [Tooltip("Spectral flux → extra agitation on top of treble.")]
+        [Range(0f, 1f)] public float FluxAgitation = 0.35f;
+        [Tooltip("Fraction of flock cohesion lost at full treble (frantic scattering).")]
+        [Range(0f, 1f)] public float TrebleCohesionLoss = 0.5f;
     }
 }

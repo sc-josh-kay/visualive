@@ -26,6 +26,9 @@ namespace PlayVisualizer.Gameplay
         private float _lastBurstTime;
         private float _intensity; // song-time intensity, exposed on the HUD readout
 
+        // Smoothed spawn-composition channel levels (0..1), so composition shifts by section.
+        private float _lvlEnergy = 0.5f, _lvlBass = 0.5f, _lvlTreble = 0.5f, _lvlFlux = 0.5f;
+
         private void Awake()
         {
             if (_analyzer == null) _analyzer = FindFirstObjectByType<AudioAnalyzer>();
@@ -77,14 +80,19 @@ namespace PlayVisualizer.Gameplay
                 _spawner.ActiveMaxEnemies =
                     Mathf.RoundToInt(Mathf.Lerp(_config.StartMaxEnemies, _config.FullMaxEnemies, _intensity));
                 _spawner.SongProgress = progress;
+
+                // Mapping 2 (spec8): music-reactive spawn COMPOSITION. Smooth the channel levels so
+                // the enemy mix shifts by musical section, then bias the weighted table + formations.
+                float k = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(0.05f, _config.SpawnCompositionSmoothing));
+                _lvlEnergy = Mathf.Lerp(_lvlEnergy, Mathf.Clamp01(s.Energy), k);
+                _lvlBass = Mathf.Lerp(_lvlBass, Mathf.Clamp01(s.Bass), k);
+                _lvlTreble = Mathf.Lerp(_lvlTreble, Mathf.Clamp01(s.Treble), k);
+                _lvlFlux = Mathf.Lerp(_lvlFlux, Mathf.Clamp01(s.SpectralFlux * _config.FluxScale), k);
+                _spawner.SetMusicChannels(_lvlEnergy, _lvlBass, _lvlTreble, _lvlFlux);
             }
 
-            // Mapping 2: Bass → Enemy Speed (applied live to all enemies via the shared channel)
-            if (_enemyModulation != null)
-            {
-                _enemyModulation.SpeedMultiplier =
-                    Mathf.Lerp(_config.SpeedMultMin, _config.SpeedMultMax, s.Bass);
-            }
+            // Per-type movement/visual reactions (Energy/Bass/Treble/Flux) live on the enemies
+            // themselves (spec8), reading MusicState directly — no global speed channel here.
 
             // Mapping 3: Beat → Spawn Burst — gated by intensity and a minimum interval so fast
             // beats don't flood the arena.
@@ -104,11 +112,13 @@ namespace PlayVisualizer.Gameplay
                 _spawner.SpawnRate = _spawner.BaselineSpawnRate;
                 _spawner.ActiveMaxEnemies = -1; // back to the config cap
                 _spawner.SongProgress = 1f;     // all enemy types eligible
+                _spawner.ResetMusicChannels();  // neutral composition
             }
             if (_enemyModulation != null)
             {
                 _enemyModulation.SpeedMultiplier = 1f;
             }
+            _lvlEnergy = _lvlBass = _lvlTreble = _lvlFlux = 0.5f;
         }
 
         private void OnGUI()

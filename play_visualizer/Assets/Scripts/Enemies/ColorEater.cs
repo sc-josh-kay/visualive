@@ -1,4 +1,5 @@
 using UnityEngine;
+using PlayVisualizer.Audio;
 using PlayVisualizer.Visuals;
 
 namespace PlayVisualizer.Enemies
@@ -27,7 +28,14 @@ namespace PlayVisualizer.Enemies
             // Blend in separation so a crowd spreads out instead of stacking into one harmless blob.
             Vector2 dir = seek + SeparationForce(_config.SeparationRadius, _config.SeparationStrength);
             if (dir.sqrMagnitude > 1e-6f) dir.Normalize();
-            _rb.linearVelocity = dir * (_config.Speed * SpeedMultiplier);
+
+            // Rhythm/Energy personality (spec8): Energy → modestly faster; Beat → a brief FORWARD
+            // nudge (along the heading, never a redirect). Both bounded.
+            MusicState s = Music;
+            float energy = s != null ? s.Energy : 0f;
+            float speed = _config.Speed * (1f + energy * _config.EnergySpeedInfluence) * SpeedMultiplier;
+            float impulse = _config.BeatImpulse * BeatEnv;
+            _rb.linearVelocity = dir * (speed + impulse);
 
             // Passive nibbling: eat a little coverage wherever it is → a blackened region in its wake.
             if (VisualizerField.Instance != null)
@@ -35,6 +43,12 @@ namespace PlayVisualizer.Enemies
                 VisualizerField.Instance.Consume(
                     pos, _config.ConsumeRadius, _config.ConsumeStrengthPerSecond * dt);
             }
+        }
+
+        protected override void UpdateVisual(MusicState s, float dt)
+        {
+            // Rhythmic pulse on the beat (cosmetic; collider unchanged).
+            SetVisualScale(1f + BeatEnv * _config.BeatPulseScale);
         }
     }
 }

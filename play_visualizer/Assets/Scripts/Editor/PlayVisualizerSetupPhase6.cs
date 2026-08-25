@@ -100,15 +100,21 @@ namespace PlayVisualizer.EditorTools
             var so = new SerializedObject(spawner);
             SerializedProperty arr = so.FindProperty("_entries");
             arr.arraySize = 3;
-            // prefab, weight, groupMin, groupMax, spread, minSongProgress (tougher types unlock later)
-            SetEntry(arr.GetArrayElementAtIndex(0), colorEater, 1.0f, 1, 1, 0f, 0f);
-            SetEntry(arr.GetArrayElementAtIndex(1), corruptor, 0.25f, 1, 1, 0f, 0.2f);
-            SetEntry(arr.GetArrayElementAtIndex(2), swarm, 0.5f, 6, 10, 1.8f, 0.35f);
+            // prefab, weight, groupMin, groupMax, spread, minSongProgress, musicChannel, influence.
+            // Each type's prevalence is biased by its musical character (spec8):
+            //   Color Eater ← Energy, Corruptor ← Bass, Swarm ← Treble.
+            SetEntry(arr.GetArrayElementAtIndex(0), colorEater, 1.0f, 1, 1, 0f, 0f,
+                EnemySpawner.MusicChannel.Energy, 0.5f);
+            SetEntry(arr.GetArrayElementAtIndex(1), corruptor, 0.25f, 1, 1, 0f, 0.2f,
+                EnemySpawner.MusicChannel.Bass, 0.85f);
+            SetEntry(arr.GetArrayElementAtIndex(2), swarm, 0.5f, 6, 10, 1.8f, 0.35f,
+                EnemySpawner.MusicChannel.Treble, 0.85f);
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void SetEntry(SerializedProperty el, EnemyBase prefab, float weight,
-            int gMin, int gMax, float spread, float minProgress)
+            int gMin, int gMax, float spread, float minProgress,
+            EnemySpawner.MusicChannel channel, float influence)
         {
             el.FindPropertyRelative("Prefab").objectReferenceValue = prefab;
             el.FindPropertyRelative("Weight").floatValue = weight;
@@ -116,6 +122,8 @@ namespace PlayVisualizer.EditorTools
             el.FindPropertyRelative("GroupMax").intValue = gMax;
             el.FindPropertyRelative("GroupSpread").floatValue = spread;
             el.FindPropertyRelative("MinSongProgress").floatValue = minProgress;
+            el.FindPropertyRelative("Channel").enumValueIndex = (int)channel;
+            el.FindPropertyRelative("MusicInfluence").floatValue = influence;
         }
 
         // ----------------------------------------------------------------- prefabs / configs
@@ -124,11 +132,6 @@ namespace PlayVisualizer.EditorTools
             Sprite sprite, Color color, EnemyConfig config, DeathPop deathPop, CollisionBurst burst)
         {
             var go = new GameObject(name);
-
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = color;
-            sr.sortingOrder = 8;
 
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
@@ -139,10 +142,19 @@ namespace PlayVisualizer.EditorTools
             col.isTrigger = true;
             col.radius = 0.4f;
 
+            // Sprite on a Visual child so music pulses (scale/jitter) never resize the collider.
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(go.transform, false);
+            var sr = visual.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = color;
+            sr.sortingOrder = 8;
+
             var enemy = (EnemyBase)go.AddComponent(component);
             AssignReference(enemy, "_config", config);
             if (deathPop != null) AssignReference(enemy, "_deathPopPrefab", deathPop);
             if (burst != null) AssignReference(enemy, "_collisionBurstPrefab", burst);
+            AssignReference(enemy, "_visualRoot", visual.transform);
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);

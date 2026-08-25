@@ -1,4 +1,5 @@
 using UnityEngine;
+using PlayVisualizer.Audio;
 using PlayVisualizer.Visuals;
 
 namespace PlayVisualizer.Enemies
@@ -29,6 +30,12 @@ namespace PlayVisualizer.Enemies
                 : 1f;
             float radius = Mathf.Lerp(_config.CorruptStartRadius, _config.CorruptMaxRadius, grow);
 
+            // Bass personality (spec8): bass temporarily swells the corruption (bounded, so bass can't
+            // cause runaway coverage loss), and a bass ONSET produces a small forward lunge.
+            MusicState s = Music;
+            float bass = s != null ? s.Bass : 0f;
+            radius *= 1f + bass * _config.BassCorruptRadius;
+
             Vector2 pos = transform.position;
 
             // Slow drift toward the smoke, slowing further as it entrenches and spreads.
@@ -36,13 +43,21 @@ namespace PlayVisualizer.Enemies
             if (dir.sqrMagnitude > 1e-6f) dir.Normalize();
             dir += SeparationForce(_config.SeparationRadius, _config.SeparationStrength);
             if (dir.sqrMagnitude > 1e-6f) dir.Normalize();
-            _rb.linearVelocity = dir * (_config.Speed * SpeedMultiplier * (1f - 0.7f * grow));
+            float lunge = _config.BassLungeImpulse * BassOnsetEnv;
+            _rb.linearVelocity = dir * (_config.Speed * SpeedMultiplier * (1f - 0.7f * grow) + lunge);
 
             // The expanding corruption: a growing (non-uniform) consume area.
             if (VisualizerField.Instance != null)
             {
                 VisualizerField.Instance.Consume(pos, radius, _config.ConsumeStrengthPerSecond * dt);
             }
+        }
+
+        protected override void UpdateVisual(MusicState s, float dt)
+        {
+            // Smooth bass "thump": body swells with bass, harder on a bass onset (cosmetic).
+            float bass = s != null ? s.Bass : 0f;
+            SetVisualScale(1f + bass * _config.BassPulseScale + BassOnsetEnv * _config.BassPulseScale * 0.6f);
         }
     }
 }

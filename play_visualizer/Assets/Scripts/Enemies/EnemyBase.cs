@@ -25,6 +25,9 @@ namespace PlayVisualizer.Enemies
         [Tooltip("Spark burst spawned when the enemy reaches the player (the 'puff of blackness'). " +
                  "Falls back to a plain consume if unset.")]
         [SerializeField] private CollisionBurst _collisionBurstPrefab;
+        [Tooltip("Child transform holding the sprite. Music pulses scale/offset THIS, never the " +
+                 "root (so the collider is never resized). Auto-found if unset.")]
+        [SerializeField] private Transform _visualRoot;
 
         protected Rigidbody2D _rb;
         protected SpriteRenderer _sprite;
@@ -32,6 +35,16 @@ namespace PlayVisualizer.Enemies
         private AudioAnalyzer _analyzer;
         private int _health;
         private bool _dead;
+
+        // Cached base visual transform (music reactions modulate around these).
+        private Vector3 _baseVisualScale = Vector3.one;
+        private Vector3 _baseVisualPos = Vector3.zero;
+
+        // Shared music envelopes (decaying), so per-type reactions read a smooth pulse, not a flag.
+        /// <summary>1 on a beat, decaying to 0 (~0.18s). For rhythmic visual/movement pulses.</summary>
+        protected float BeatEnv { get; private set; }
+        /// <summary>Rises on a bass onset (by strength), decaying to 0 (~0.22s).</summary>
+        protected float BassOnsetEnv { get; private set; }
 
         // Per-enemy random offset on the smoke target, so a crowd doesn't converge on one point.
         private Vector2 _jitter;
@@ -73,7 +86,8 @@ namespace PlayVisualizer.Enemies
         protected virtual void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
-            _sprite = GetComponent<SpriteRenderer>();
+            _sprite = GetComponentInChildren<SpriteRenderer>();
+            if (_visualRoot == null) _visualRoot = _sprite != null ? _sprite.transform : transform;
             _rb.gravityScale = 0f;
             _rb.freezeRotation = true;
             _analyzer = FindFirstObjectByType<AudioAnalyzer>();
@@ -86,8 +100,50 @@ namespace PlayVisualizer.Enemies
                 _health = _config.Health;
                 transform.localScale = Vector3.one * _config.Scale;
             }
+            if (_visualRoot != null)
+            {
+                _baseVisualScale = _visualRoot.localScale;
+                _baseVisualPos = _visualRoot.localPosition;
+            }
+            BeatEnv = 0f;
+            BassOnsetEnv = 0f;
             RerollJitter();
             All.Add(this);
+        }
+
+        private void Update()
+        {
+            if (_dead || _config == null) return;
+
+            MusicState s = Music;
+            float dt = Time.deltaTime;
+
+            // Decaying music envelopes shared by the per-type visual/movement reactions.
+            BeatEnv = Mathf.Max(0f, BeatEnv - dt / 0.18f);
+            if (s != null && s.Beat) BeatEnv = 1f;
+            BassOnsetEnv = Mathf.Max(0f, BassOnsetEnv - dt / 0.22f);
+            if (s != null && s.BassOnset)
+            {
+                float strength = s.BassOnsetStrength > 0f ? Mathf.Clamp01(s.BassOnsetStrength) : 1f;
+                BassOnsetEnv = Mathf.Max(BassOnsetEnv, strength);
+            }
+
+            UpdateVisual(s, dt);
+        }
+
+        /// <summary>Per-type cosmetic reaction to the music (pulse/jitter). Modulates the VISUAL child.</summary>
+        protected virtual void UpdateVisual(MusicState s, float dt) { }
+
+        /// <summary>Set the visual child's scale as a multiplier of its base (cosmetic only).</summary>
+        protected void SetVisualScale(float multiplier)
+        {
+            if (_visualRoot != null) _visualRoot.localScale = _baseVisualScale * multiplier;
+        }
+
+        /// <summary>Offset the visual child in local space (cosmetic jitter; never moves the collider).</summary>
+        protected void SetVisualOffset(Vector2 localOffset)
+        {
+            if (_visualRoot != null) _visualRoot.localPosition = _baseVisualPos + (Vector3)localOffset;
         }
 
         protected virtual void OnDisable()

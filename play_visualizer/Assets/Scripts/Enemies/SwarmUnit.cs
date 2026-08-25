@@ -1,4 +1,5 @@
 using UnityEngine;
+using PlayVisualizer.Audio;
 using PlayVisualizer.Visuals;
 
 namespace PlayVisualizer.Enemies
@@ -22,10 +23,20 @@ namespace PlayVisualizer.Enemies
                 : SmokeTargetWorld() - pos;
             if (seek.sqrMagnitude > 1e-6f) seek.Normalize();
 
-            Vector2 sep = SeparationForce(_config.SeparationRadius, _config.SeparationStrength);
-            Vector2 coh = CohesionForce(_config.SwarmCohesionRadius, _config.SwarmCohesionStrength);
+            // Treble/Flux personality (spec8): high frequencies make the swarm "buzz" — more per-unit
+            // perturbation and weaker cohesion (frantic scattering). Targeting is preserved; the
+            // perturbation is bounded so units stay readable.
+            MusicState s = Music;
+            float treble = s != null ? s.Treble : 0f;
+            float flux = s != null ? Mathf.Clamp01(s.SpectralFlux) : 0f;
+            float agitation = Mathf.Clamp01(treble * _config.TrebleJitter + flux * _config.FluxAgitation);
+            float cohesion = _config.SwarmCohesionStrength * (1f - treble * _config.TrebleCohesionLoss);
 
-            Vector2 dir = seek + sep + coh;
+            Vector2 sep = SeparationForce(_config.SeparationRadius, _config.SeparationStrength);
+            Vector2 coh = CohesionForce(_config.SwarmCohesionRadius, cohesion);
+            Vector2 perturb = Random.insideUnitCircle * agitation;
+
+            Vector2 dir = seek + sep + coh + perturb;
             if (dir.sqrMagnitude > 1e-6f) dir.Normalize();
             _rb.linearVelocity = dir * (_config.Speed * SpeedMultiplier);
 
@@ -34,6 +45,16 @@ namespace PlayVisualizer.Enemies
                 VisualizerField.Instance.Consume(
                     pos, _config.ConsumeRadius, _config.ConsumeStrengthPerSecond * dt);
             }
+        }
+
+        protected override void UpdateVisual(MusicState s, float dt)
+        {
+            // High-frequency vibration: small rapid position jitter (+ subtle flutter). Cosmetic.
+            float treble = s != null ? s.Treble : 0f;
+            float flux = s != null ? Mathf.Clamp01(s.SpectralFlux) : 0f;
+            float amp = 0.06f * Mathf.Clamp01(treble * _config.TrebleJitter + flux * _config.FluxAgitation);
+            SetVisualOffset(Random.insideUnitCircle * amp);
+            SetVisualScale(1f + treble * 0.08f);
         }
     }
 }

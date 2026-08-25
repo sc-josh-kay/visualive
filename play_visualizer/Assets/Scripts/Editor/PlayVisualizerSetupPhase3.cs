@@ -114,11 +114,6 @@ namespace PlayVisualizer.EditorTools
         {
             var go = new GameObject("Enemy");
 
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = EnemyColor;
-            sr.sortingOrder = 8;
-
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
@@ -128,10 +123,19 @@ namespace PlayVisualizer.EditorTools
             col.isTrigger = true;
             col.radius = 0.4f;
 
+            // Sprite lives on a Visual child so music pulses (scale/jitter) never resize the collider.
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(go.transform, false);
+            var sr = visual.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = EnemyColor;
+            sr.sortingOrder = 8;
+
             var enemy = go.AddComponent<ColorEater>();
             AssignReference(enemy, "_config", config);
             AssignReference(enemy, "_deathPopPrefab", deathPop);
             if (collisionBurst != null) AssignReference(enemy, "_collisionBurstPrefab", collisionBurst);
+            AssignReference(enemy, "_visualRoot", visual.transform);
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, EnemyPrefabPath);
             Object.DestroyImmediate(go);

@@ -33,3 +33,12 @@ MonoBehaviour:
   CorruptGrowSeconds: 8
   SwarmCohesionRadius: 3.5
   SwarmCohesionStrength: 0.7
+  EnergySpeedInfluence: 0.4
+  BeatPulseScale: 0.18
+  BeatImpulse: 2
+  BassPulseScale: 0.3
+  BassLungeImpulse: 2.5
+  BassCorruptRadius: 0.35
+  TrebleJitter: 0.35
+  FluxAgitation: 0.35
+  TrebleCohesionLoss: 0.5

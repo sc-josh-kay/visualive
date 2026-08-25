@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d43c8ac63c884d26a28e7ef5bb48e75, type: 3}
+  m_Name: EnemyConfig
+  m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.EnemyConfig
+  Speed: 3
+  Health: 3
+  ContactDamage: 25
+  Scale: 0.8
+  ScoreValue: 100
+  ConsumeRadius: 1.6
+  ConsumeStrengthPerSecond: 8
+  DeathPaintRadius: 1.6
+  DeathPaintIntensity: 1.2
+  PlayerChaseRadius: 4
+  TargetJitter: 2.5
+  SeparationRadius: 1.2
+  SeparationStrength: 1.5
+  HitConsumeRadius: 1.8
+  HitConsumeStrength: 1
+  HitBurstDuration: 0.35

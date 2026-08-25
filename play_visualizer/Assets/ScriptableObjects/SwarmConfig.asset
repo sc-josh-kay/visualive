@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d43c8ac63c884d26a28e7ef5bb48e75, type: 3}
+  m_Name: SwarmConfig
+  m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.EnemyConfig
+  Speed: 5
+  Health: 1
+  ContactDamage: 25
+  Scale: 0.35
+  ScoreValue: 20
+  ConsumeRadius: 0.5
+  ConsumeStrengthPerSecond: 2.5
+  DeathPaintRadius: 0.7
+  DeathPaintIntensity: 0.9
+  PlayerChaseRadius: 2
+  TargetJitter: 3.5
+  SeparationRadius: 0.5
+  SeparationStrength: 1.2
+  HitConsumeRadius: 0.9
+  HitConsumeStrength: 0.8
+  HitBurstDuration: 0.25
+  CorruptStartRadius: 0.8
+  CorruptMaxRadius: 4
+  CorruptGrowSeconds: 8
+  SwarmCohesionRadius: 3.5
+  SwarmCohesionStrength: 0.7

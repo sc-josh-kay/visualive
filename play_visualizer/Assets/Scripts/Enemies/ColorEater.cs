@@ -12,22 +12,12 @@ namespace PlayVisualizer.Enemies
     /// </summary>
     public class ColorEater : EnemyBase
     {
-        private static readonly int BaseHueId = Shader.PropertyToID("_BaseHue");
-        private static readonly int RingCountId = Shader.PropertyToID("_RingCount");
-        private static readonly int Time0Id = Shader.PropertyToID("_Time0");
-        private static readonly int WobbleId = Shader.PropertyToID("_Wobble");
-        private static readonly int WobbleTrebleId = Shader.PropertyToID("_WobbleTreble");
-        private static readonly int PulseId = Shader.PropertyToID("_Pulse");
-        private static readonly int SeedId = Shader.PropertyToID("_Seed");
+        private ColorEaterVisualizer _visualizer;
 
-        private float _seed;
-        private int _ringCount;
-
-        protected override void OnEnable()
+        protected override void Awake()
         {
-            base.OnEnable();
-            _seed = Random.value * 100f;      // per-enemy ring arrangement
-            _ringCount = Random.Range(3, 6);  // 3..5 stacked rings
+            base.Awake();
+            _visualizer = GetComponentInChildren<ColorEaterVisualizer>();
         }
 
         protected override void Behave(float dt)
@@ -65,26 +55,16 @@ namespace PlayVisualizer.Enemies
 
         protected override void UpdateVisual(MusicState s, float dt)
         {
-            // Rhythmic scale pulse on the beat (cosmetic; collider unchanged).
-            SetVisualScale(1f + BeatEnv * _config.BeatPulseScale);
+            // Subtle overall bass pulse (weaker than the Corruptor) + a tiny beat lift — scales the
+            // whole ring creature (visual child only; collider unchanged).
+            float bass = s != null ? s.Bass : 0f;
+            SetVisualScale(1f + bass * 0.08f + BeatEnv * _config.BeatPulseScale * 0.4f);
 
-            // Stacked color rings: base hue drifts with the music; each ring picks its own hue,
-            // offset, and wobble from the seed. Energy drives wobble, treble adds finer vibration.
-            float energy = s != null ? s.Energy : 0f;
-            float treble = s != null ? s.Treble : 0f;
-            float centroid = s != null ? s.SpectralCentroid : 0.7f;
-            float baseHue = Mathf.Repeat(centroid + Time.time * 0.02f, 1f);
-            CurrentColor = Color.HSVToRGB(baseHue, 0.9f, 1f);
+            // Death explosion inherits the enemy's fixed (spawn-chosen) color.
+            if (_visualizer != null) CurrentColor = _visualizer.BaseColor;
 
-            var mpb = VisualBlock;
-            mpb.SetFloat(BaseHueId, baseHue);
-            mpb.SetFloat(RingCountId, _ringCount);
-            mpb.SetFloat(SeedId, _seed);
-            mpb.SetFloat(WobbleId, 0.015f + energy * 0.045f + BeatEnv * 0.03f);
-            mpb.SetFloat(WobbleTrebleId, treble * 0.035f);
-            mpb.SetFloat(PulseId, BeatEnv);
-            mpb.SetFloat(Time0Id, Time.time);
-            ApplyVisualBlock();
+            // It's always eating — tell the visualizer so the rings stay a touch more alive.
+            if (_visualizer != null) _visualizer.Consuming = 1f;
         }
     }
 }

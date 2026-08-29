@@ -42,8 +42,11 @@ namespace PlayVisualizer.EditorTools
 
             CollisionBurst collisionBurst = BuildCollisionBurstPrefab();
 
-            Material ringMat = LoadOrCreateMaterial("Assets/Materials/EnemyRing.mat", "PlayVisualizer/EnemyRing");
-            GameObject enemyPrefab = BuildEnemyPrefab(ringMat, enemyConfig, deathPopComponent, collisionBurst);
+            Material lineMat = LoadOrCreateMaterial("Assets/Materials/EnergyTrail.mat", "PlayVisualizer/EnergyTrail");
+            Sprite softGlow = LoadOrGenerateSoftGlow(ArtDir + "/SoftGlow.png");
+            Material coreMat = LoadOrCreateMaterial("Assets/Materials/EnergySprite.mat", "PlayVisualizer/EnergySprite");
+            if (coreMat != null && softGlow != null) { coreMat.mainTexture = softGlow.texture; EditorUtility.SetDirty(coreMat); }
+            GameObject enemyPrefab = BuildEnemyPrefab(lineMat, softGlow, coreMat, enemyConfig, deathPopComponent, collisionBurst);
             EnemyBase enemyComponent = enemyPrefab.GetComponent<ColorEater>();
 
             EnsurePlayerHealth();
@@ -52,7 +55,9 @@ namespace PlayVisualizer.EditorTools
 
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            Debug.Log("PlayVisualizer: Phase 3 setup complete. Save the scene (Cmd+S) and press Play.");
+            Debug.Log("PlayVisualizer: Phase 3 setup complete. NOTE: this resets the spawner to Color " +
+                      "Eaters only — RE-RUN 'Build Corruptor + Swarm (Phase 6)' to restore all enemy " +
+                      "types. Then save the scene (Cmd+S) and press Play.");
         }
 
         // ---------------------------------------------------------------- prefabs
@@ -109,8 +114,8 @@ namespace PlayVisualizer.EditorTools
             return prefab.GetComponent<CollisionBurst>();
         }
 
-        private static GameObject BuildEnemyPrefab(Material visualMat, EnemyConfig config, DeathPop deathPop,
-            CollisionBurst collisionBurst)
+        private static GameObject BuildEnemyPrefab(Material lineMat, Sprite coreSprite, Material coreMat,
+            EnemyConfig config, DeathPop deathPop, CollisionBurst collisionBurst)
         {
             var go = new GameObject("Enemy");
 
@@ -123,15 +128,31 @@ namespace PlayVisualizer.EditorTools
             col.isTrigger = true;
             col.radius = 0.4f;
 
-            // Procedural visual on a Visual child quad so music pulses never resize the collider.
-            Renderer vr = EnemyVisualQuad.Build(go.transform, visualMat, out Transform visualRoot);
+            // The Color Eater's living ring-visualizer on a Visual child (LineRenderers built at
+            // runtime). Music pulses scale THIS child, never the root collider.
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(go.transform, false);
+            var viz = visual.AddComponent<ColorEaterVisualizer>();
+            if (lineMat != null) AssignReference(viz, "_lineMaterial", lineMat);
+
+            // Dim music-colored center fill (behind the rings) for readability.
+            if (coreSprite != null && coreMat != null)
+            {
+                var core = new GameObject("Core");
+                core.transform.SetParent(visual.transform, false);
+                core.transform.localScale = Vector3.one * 0.65f;
+                var csr = core.AddComponent<SpriteRenderer>();
+                csr.sprite = coreSprite;
+                csr.sharedMaterial = coreMat;
+                csr.sortingOrder = 7; // behind the rings (8)
+                AssignReference(viz, "_center", csr);
+            }
 
             var enemy = go.AddComponent<ColorEater>();
             AssignReference(enemy, "_config", config);
             AssignReference(enemy, "_deathPopPrefab", deathPop);
             if (collisionBurst != null) AssignReference(enemy, "_collisionBurstPrefab", collisionBurst);
-            AssignReference(enemy, "_visualRoot", visualRoot);
-            AssignReference(enemy, "_visualRenderer", vr);
+            AssignReference(enemy, "_visualRoot", visual.transform);
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, EnemyPrefabPath);
             Object.DestroyImmediate(go);
@@ -150,6 +171,39 @@ namespace PlayVisualizer.EditorTools
             if (m == null) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); }
             else if (m.shader != sh) m.shader = sh;
             return m;
+        }
+
+        private static Sprite LoadOrGenerateSoftGlow(string path)
+        {
+            Sprite existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (existing != null) return existing;
+
+            const int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float c = (size - 1) / 2f;
+            float maxR = size / 2f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x - c) / maxR, dy = (y - c) / maxR;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(Mathf.Exp(-d * d * 5f))));
+                }
+            }
+            tex.Apply();
+            byte[] png = tex.EncodeToPNG();
+            Object.DestroyImmediate(tex);
+            File.WriteAllBytes(path, png);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         // ---------------------------------------------------------------- scene

@@ -12,6 +12,24 @@ namespace PlayVisualizer.Enemies
     /// </summary>
     public class ColorEater : EnemyBase
     {
+        private static readonly int BaseHueId = Shader.PropertyToID("_BaseHue");
+        private static readonly int RingCountId = Shader.PropertyToID("_RingCount");
+        private static readonly int Time0Id = Shader.PropertyToID("_Time0");
+        private static readonly int WobbleId = Shader.PropertyToID("_Wobble");
+        private static readonly int WobbleTrebleId = Shader.PropertyToID("_WobbleTreble");
+        private static readonly int PulseId = Shader.PropertyToID("_Pulse");
+        private static readonly int SeedId = Shader.PropertyToID("_Seed");
+
+        private float _seed;
+        private int _ringCount;
+
+        protected override void OnEnable()
+        {
+            base.OnEnable();
+            _seed = Random.value * 100f;      // per-enemy ring arrangement
+            _ringCount = Random.Range(3, 6);  // 3..5 stacked rings
+        }
+
         protected override void Behave(float dt)
         {
             Vector2 pos = transform.position;
@@ -47,8 +65,26 @@ namespace PlayVisualizer.Enemies
 
         protected override void UpdateVisual(MusicState s, float dt)
         {
-            // Rhythmic pulse on the beat (cosmetic; collider unchanged).
+            // Rhythmic scale pulse on the beat (cosmetic; collider unchanged).
             SetVisualScale(1f + BeatEnv * _config.BeatPulseScale);
+
+            // Stacked color rings: base hue drifts with the music; each ring picks its own hue,
+            // offset, and wobble from the seed. Energy drives wobble, treble adds finer vibration.
+            float energy = s != null ? s.Energy : 0f;
+            float treble = s != null ? s.Treble : 0f;
+            float centroid = s != null ? s.SpectralCentroid : 0.7f;
+            float baseHue = Mathf.Repeat(centroid + Time.time * 0.02f, 1f);
+            CurrentColor = Color.HSVToRGB(baseHue, 0.9f, 1f);
+
+            var mpb = VisualBlock;
+            mpb.SetFloat(BaseHueId, baseHue);
+            mpb.SetFloat(RingCountId, _ringCount);
+            mpb.SetFloat(SeedId, _seed);
+            mpb.SetFloat(WobbleId, 0.015f + energy * 0.045f + BeatEnv * 0.03f);
+            mpb.SetFloat(WobbleTrebleId, treble * 0.035f);
+            mpb.SetFloat(PulseId, BeatEnv);
+            mpb.SetFloat(Time0Id, Time.time);
+            ApplyVisualBlock();
         }
     }
 }

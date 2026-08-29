@@ -13,6 +13,10 @@ namespace PlayVisualizer.Enemies
     /// </summary>
     public class SwarmUnit : EnemyBase
     {
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int Time0Id = Shader.PropertyToID("_Time0");
+        private static readonly int FlutterId = Shader.PropertyToID("_Flutter");
+
         protected override void Behave(float dt)
         {
             Vector2 pos = transform.position;
@@ -49,12 +53,23 @@ namespace PlayVisualizer.Enemies
 
         protected override void UpdateVisual(MusicState s, float dt)
         {
-            // High-frequency vibration: small rapid position jitter (+ subtle flutter). Cosmetic.
+            // High-frequency vibration: small rapid position jitter (+ subtle scale flutter). Cosmetic.
             float treble = s != null ? s.Treble : 0f;
             float flux = s != null ? Mathf.Clamp01(s.SpectralFlux) : 0f;
-            float amp = 0.06f * Mathf.Clamp01(treble * _config.TrebleJitter + flux * _config.FluxAgitation);
-            SetVisualOffset(Random.insideUnitCircle * amp);
+            float agitation = Mathf.Clamp01(treble * _config.TrebleJitter + flux * _config.FluxAgitation);
+            SetVisualOffset(Random.insideUnitCircle * (0.06f * agitation));
             SetVisualScale(1f + treble * 0.08f);
+
+            // Neon starfish whose arms flutter with treble/flux; neon red-purple (leaning red),
+            // shifting slightly toward red with treble.
+            Color c = Color.HSVToRGB(Mathf.Repeat(0.94f + treble * 0.04f, 1f), 0.9f, 1f);
+            CurrentColor = c;
+
+            var mpb = VisualBlock;
+            mpb.SetColor(ColorId, c);
+            mpb.SetFloat(Time0Id, Time.time);
+            mpb.SetFloat(FlutterId, agitation);
+            ApplyVisualBlock();
         }
     }
 }

@@ -31,7 +31,7 @@ namespace PlayVisualizer.Enemies
         public float ConsumeRadius = 1.6f;
 
         [Tooltip("How fast it eats coverage (per second). Applied as strength = this × deltaTime.")]
-        public float ConsumeStrengthPerSecond = 8f;
+        public float ConsumeStrengthPerSecond = 9.2f;
 
         [Header("Death — visualizer explosion (spec §8)")]
         [Tooltip("World radius of the color burst painted into the field when destroyed.")]

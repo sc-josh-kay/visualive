@@ -32,7 +32,6 @@ namespace PlayVisualizer.EditorTools
             EnsureFolder("Assets/Prefabs", "Enemies");
             EnsureFolder("Assets/Prefabs", "Visuals");
 
-            Sprite diamond = CreateDiamondSprite(ArtDir + "/EnemyDiamond.png", 128);
             Sprite circle = LoadOrGenerateCircle(ArtDir + "/ProjectileCircle.png", 64);
 
             EnemyConfig enemyConfig = LoadOrCreate<EnemyConfig>(ConfigDir + "/EnemyConfig.asset");
@@ -43,7 +42,8 @@ namespace PlayVisualizer.EditorTools
 
             CollisionBurst collisionBurst = BuildCollisionBurstPrefab();
 
-            GameObject enemyPrefab = BuildEnemyPrefab(diamond, enemyConfig, deathPopComponent, collisionBurst);
+            Material ringMat = LoadOrCreateMaterial("Assets/Materials/EnemyRing.mat", "PlayVisualizer/EnemyRing");
+            GameObject enemyPrefab = BuildEnemyPrefab(ringMat, enemyConfig, deathPopComponent, collisionBurst);
             EnemyBase enemyComponent = enemyPrefab.GetComponent<ColorEater>();
 
             EnsurePlayerHealth();
@@ -109,7 +109,7 @@ namespace PlayVisualizer.EditorTools
             return prefab.GetComponent<CollisionBurst>();
         }
 
-        private static GameObject BuildEnemyPrefab(Sprite sprite, EnemyConfig config, DeathPop deathPop,
+        private static GameObject BuildEnemyPrefab(Material visualMat, EnemyConfig config, DeathPop deathPop,
             CollisionBurst collisionBurst)
         {
             var go = new GameObject("Enemy");
@@ -123,23 +123,33 @@ namespace PlayVisualizer.EditorTools
             col.isTrigger = true;
             col.radius = 0.4f;
 
-            // Sprite lives on a Visual child so music pulses (scale/jitter) never resize the collider.
-            var visual = new GameObject("Visual");
-            visual.transform.SetParent(go.transform, false);
-            var sr = visual.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = EnemyColor;
-            sr.sortingOrder = 8;
+            // Procedural visual on a Visual child quad so music pulses never resize the collider.
+            Renderer vr = EnemyVisualQuad.Build(go.transform, visualMat, out Transform visualRoot);
 
             var enemy = go.AddComponent<ColorEater>();
             AssignReference(enemy, "_config", config);
             AssignReference(enemy, "_deathPopPrefab", deathPop);
             if (collisionBurst != null) AssignReference(enemy, "_collisionBurstPrefab", collisionBurst);
-            AssignReference(enemy, "_visualRoot", visual.transform);
+            AssignReference(enemy, "_visualRoot", visualRoot);
+            AssignReference(enemy, "_visualRenderer", vr);
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, EnemyPrefabPath);
             Object.DestroyImmediate(go);
             return prefab;
+        }
+
+        private static Material LoadOrCreateMaterial(string path, string shaderName)
+        {
+            Shader sh = Shader.Find(shaderName);
+            if (sh == null)
+            {
+                Debug.LogError($"PlayVisualizer: shader '{shaderName}' not found — let Unity compile shaders, then re-run.");
+                return null;
+            }
+            Material m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); }
+            else if (m.shader != sh) m.shader = sh;
+            return m;
         }
 
         // ---------------------------------------------------------------- scene

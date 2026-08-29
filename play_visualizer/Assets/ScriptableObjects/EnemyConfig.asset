@@ -18,7 +18,7 @@ MonoBehaviour:
   Scale: 0.8
   ScoreValue: 100
   ConsumeRadius: 1.6
-  ConsumeStrengthPerSecond: 8
+  ConsumeStrengthPerSecond: 9.2
   DeathPaintRadius: 1.6
   DeathPaintIntensity: 1.2
   PlayerChaseRadius: 4

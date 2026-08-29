@@ -25,16 +25,22 @@ namespace PlayVisualizer.Enemies
         [Tooltip("Spark burst spawned when the enemy reaches the player (the 'puff of blackness'). " +
                  "Falls back to a plain consume if unset.")]
         [SerializeField] private CollisionBurst _collisionBurstPrefab;
-        [Tooltip("Child transform holding the sprite. Music pulses scale/offset THIS, never the " +
-                 "root (so the collider is never resized). Auto-found if unset.")]
+        [Tooltip("Child transform holding the procedural visual. Music pulses scale/offset THIS, " +
+                 "never the root (so the collider is never resized). Auto-found if unset.")]
         [SerializeField] private Transform _visualRoot;
+        [Tooltip("Renderer of the procedural visual quad. Per-enemy shader uniforms are pushed to it " +
+                 "via a MaterialPropertyBlock (no per-enemy material instances). Auto-found if unset.")]
+        [SerializeField] private Renderer _visualRenderer;
 
         protected Rigidbody2D _rb;
-        protected SpriteRenderer _sprite;
         protected Transform _target;   // usually the player — the fallback steer target
         private AudioAnalyzer _analyzer;
+        private MaterialPropertyBlock _mpb;
         private int _health;
         private bool _dead;
+
+        /// <summary>The enemy's current music-driven color — inherited by its death explosion.</summary>
+        protected Color CurrentColor = Color.white;
 
         // Cached base visual transform (music reactions modulate around these).
         private Vector3 _baseVisualScale = Vector3.one;
@@ -86,8 +92,9 @@ namespace PlayVisualizer.Enemies
         protected virtual void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
-            _sprite = GetComponentInChildren<SpriteRenderer>();
-            if (_visualRoot == null) _visualRoot = _sprite != null ? _sprite.transform : transform;
+            if (_visualRenderer == null) _visualRenderer = GetComponentInChildren<Renderer>();
+            if (_visualRoot == null) _visualRoot = _visualRenderer != null ? _visualRenderer.transform : transform;
+            _mpb = new MaterialPropertyBlock();
             _rb.gravityScale = 0f;
             _rb.freezeRotation = true;
             _analyzer = FindFirstObjectByType<AudioAnalyzer>();
@@ -144,6 +151,39 @@ namespace PlayVisualizer.Enemies
         protected void SetVisualOffset(Vector2 localOffset)
         {
             if (_visualRoot != null) _visualRoot.localPosition = _baseVisualPos + (Vector3)localOffset;
+        }
+
+        /// <summary>
+        /// Set the visual child's BASE scale (which pulses then multiply). Use a non-uniform value
+        /// for per-enemy shape variety (e.g. an oblong black hole). Cosmetic; collider unchanged.
+        /// </summary>
+        protected void SetBaseVisualScale(Vector3 scale)
+        {
+            _baseVisualScale = scale;
+            if (_visualRoot != null) _visualRoot.localScale = scale;
+        }
+
+        /// <summary>Rotate the visual child in-plane (cosmetic; e.g. tilt an oblong/disk).</summary>
+        protected void SetVisualRotation(float degrees)
+        {
+            if (_visualRoot != null) _visualRoot.localRotation = Quaternion.Euler(0f, 0f, degrees);
+        }
+
+        /// <summary>Get the per-enemy property block (pre-loaded with current values) to set uniforms on.</summary>
+        protected MaterialPropertyBlock VisualBlock
+        {
+            get
+            {
+                if (_mpb == null) _mpb = new MaterialPropertyBlock();
+                if (_visualRenderer != null) _visualRenderer.GetPropertyBlock(_mpb);
+                return _mpb;
+            }
+        }
+
+        /// <summary>Push the property block back to the visual renderer.</summary>
+        protected void ApplyVisualBlock()
+        {
+            if (_visualRenderer != null && _mpb != null) _visualRenderer.SetPropertyBlock(_mpb);
         }
 
         protected virtual void OnDisable()
@@ -307,7 +347,7 @@ namespace PlayVisualizer.Enemies
                 {
                     // The burst owns both the spark visual and the growing black-hole consume, and
                     // outlives this enemy (spawned slightly in front of the gameplay plane).
-                    Color c = _sprite != null ? _sprite.color : Color.white;
+                    Color c = CurrentColor;
                     var burst = Instantiate(_collisionBurstPrefab,
                         new Vector3(at.x, at.y, -0.1f), Quaternion.identity);
                     burst.Play(c, HitConsumeRadius, HitBurstDuration, HitConsumeStrength);
@@ -364,7 +404,7 @@ namespace PlayVisualizer.Enemies
 
             // The energetic initial flash — the firework in the enemy's own color, VISUAL ONLY (no
             // consume), which the persistent paint above settles behind.
-            Color c = _sprite != null ? _sprite.color : Color.white;
+            Color c = CurrentColor;
             if (_collisionBurstPrefab != null)
             {
                 var burst = Instantiate(_collisionBurstPrefab, new Vector3(at.x, at.y, -0.1f), Quaternion.identity);

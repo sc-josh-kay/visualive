@@ -37,16 +37,13 @@ namespace PlayVisualizer.EditorTools
             EnsureFolder("Assets", "ScriptableObjects");
             EnsureFolder("Assets/Prefabs", "Enemies");
 
-            Sprite diamond = LoadOrGenerate(ArtDir + "/EnemyDiamond.png", diamondShape: true);
-            Sprite circle = LoadOrGenerate(ArtDir + "/ProjectileCircle.png", diamondShape: false);
-
             var deathPop = LoadComponent<DeathPop>("Assets/Prefabs/Visuals/DeathPop.prefab");
             var burst = LoadComponent<CollisionBurst>("Assets/Prefabs/Visuals/CollisionBurst.prefab");
 
             EnemyConfig corruptorConfig = MakeConfig(ConfigDir + "/CorruptorConfig.asset", c =>
             {
                 c.Speed = 1.2f; c.Health = 10; c.Scale = 1.5f; c.ScoreValue = 400;
-                c.ConsumeRadius = 1.0f; c.ConsumeStrengthPerSecond = 6f;
+                c.ConsumeRadius = 1.0f; c.ConsumeStrengthPerSecond = 6.9f;
                 c.DeathPaintRadius = 3.5f; c.DeathPaintIntensity = 2.5f;
                 c.PlayerChaseRadius = 0f; c.TargetJitter = 1.5f;
                 c.SeparationRadius = 2.0f; c.SeparationStrength = 1.0f;
@@ -56,8 +53,8 @@ namespace PlayVisualizer.EditorTools
 
             EnemyConfig swarmConfig = MakeConfig(ConfigDir + "/SwarmConfig.asset", c =>
             {
-                c.Speed = 5f; c.Health = 1; c.Scale = 0.35f; c.ScoreValue = 20;
-                c.ConsumeRadius = 0.5f; c.ConsumeStrengthPerSecond = 2.5f;
+                c.Speed = 5f; c.Health = 1; c.Scale = 0.55f; c.ScoreValue = 20;
+                c.ConsumeRadius = 0.5f; c.ConsumeStrengthPerSecond = 2.88f;
                 c.DeathPaintRadius = 0.7f; c.DeathPaintIntensity = 0.9f;
                 c.PlayerChaseRadius = 2f; c.TargetJitter = 3.5f;
                 c.SeparationRadius = 0.5f; c.SeparationStrength = 1.2f;
@@ -65,10 +62,13 @@ namespace PlayVisualizer.EditorTools
                 c.SwarmCohesionRadius = 3.5f; c.SwarmCohesionStrength = 0.7f;
             });
 
+            Material blackHoleMat = LoadOrCreateMaterial("Assets/Materials/EnemyBlackHole.mat", "PlayVisualizer/EnemyBlackHole");
+            Material starMat = LoadOrCreateMaterial("Assets/Materials/EnemyStar.mat", "PlayVisualizer/EnemyStar");
+
             EnemyBase corruptor = BuildEnemyPrefab("Corruptor", PrefabDir + "/Corruptor.prefab",
-                typeof(Corruptor), diamond, CorruptorColor, corruptorConfig, deathPop, burst);
+                typeof(Corruptor), blackHoleMat, corruptorConfig, deathPop, burst);
             EnemyBase swarm = BuildEnemyPrefab("SwarmUnit", PrefabDir + "/SwarmUnit.prefab",
-                typeof(SwarmUnit), circle, SwarmColor, swarmConfig, deathPop, burst);
+                typeof(SwarmUnit), starMat, swarmConfig, deathPop, burst);
 
             EnemyBase colorEater = LoadComponent<EnemyBase>("Assets/Prefabs/Enemies/Enemy.prefab");
             if (colorEater == null)
@@ -129,7 +129,7 @@ namespace PlayVisualizer.EditorTools
         // ----------------------------------------------------------------- prefabs / configs
 
         private static EnemyBase BuildEnemyPrefab(string name, string path, System.Type component,
-            Sprite sprite, Color color, EnemyConfig config, DeathPop deathPop, CollisionBurst burst)
+            Material visualMat, EnemyConfig config, DeathPop deathPop, CollisionBurst burst)
         {
             var go = new GameObject(name);
 
@@ -142,19 +142,15 @@ namespace PlayVisualizer.EditorTools
             col.isTrigger = true;
             col.radius = 0.4f;
 
-            // Sprite on a Visual child so music pulses (scale/jitter) never resize the collider.
-            var visual = new GameObject("Visual");
-            visual.transform.SetParent(go.transform, false);
-            var sr = visual.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = color;
-            sr.sortingOrder = 8;
+            // Procedural visual on a Visual child quad so music pulses never resize the collider.
+            Renderer vr = EnemyVisualQuad.Build(go.transform, visualMat, out Transform visualRoot);
 
             var enemy = (EnemyBase)go.AddComponent(component);
             AssignReference(enemy, "_config", config);
             if (deathPop != null) AssignReference(enemy, "_deathPopPrefab", deathPop);
             if (burst != null) AssignReference(enemy, "_collisionBurstPrefab", burst);
-            AssignReference(enemy, "_visualRoot", visual.transform);
+            AssignReference(enemy, "_visualRoot", visualRoot);
+            AssignReference(enemy, "_visualRenderer", vr);
 
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);
@@ -182,6 +178,20 @@ namespace PlayVisualizer.EditorTools
         {
             GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             return go != null ? go.GetComponent<T>() : null;
+        }
+
+        private static Material LoadOrCreateMaterial(string path, string shaderName)
+        {
+            Shader sh = Shader.Find(shaderName);
+            if (sh == null)
+            {
+                Debug.LogError($"PlayVisualizer: shader '{shaderName}' not found — let Unity compile shaders, then re-run.");
+                return null;
+            }
+            Material m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(sh); AssetDatabase.CreateAsset(m, path); }
+            else if (m.shader != sh) m.shader = sh;
+            return m;
         }
 
         private static Sprite LoadOrGenerate(string path, bool diamondShape)

@@ -14,12 +14,22 @@ namespace PlayVisualizer.Enemies
     /// </summary>
     public class Corruptor : EnemyBase
     {
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
+        private static readonly int Time0Id = Shader.PropertyToID("_Time0");
+        private static readonly int BassId = Shader.PropertyToID("_Bass");
+        private static readonly int FlareId = Shader.PropertyToID("_Flare");
+
         private float _age;
 
         protected override void OnEnable()
         {
             base.OnEnable();
             _age = 0f;
+
+            // Variety: some Corruptors are oblong (stretched black holes) at a random tilt.
+            float stretch = Random.value < 0.45f ? Random.Range(1.15f, 1.45f) : 1f;
+            SetBaseVisualScale(new Vector3(stretch, 1f, 1f));
+            SetVisualRotation(Random.Range(0f, 360f));
         }
 
         protected override void Behave(float dt)
@@ -57,7 +67,19 @@ namespace PlayVisualizer.Enemies
         {
             // Smooth bass "thump": body swells with bass, harder on a bass onset (cosmetic).
             float bass = s != null ? s.Bass : 0f;
+            float energy = s != null ? s.Energy : 0f;
             SetVisualScale(1f + bass * _config.BassPulseScale + BassOnsetEnv * _config.BassPulseScale * 0.6f);
+
+            // Black hole: warm accretion disk/glow, brightening + thickening with bass; onset flare.
+            Color c = Color.HSVToRGB(Mathf.Repeat(0.06f + energy * 0.03f, 1f), 0.9f, 1f);
+            CurrentColor = c;
+
+            var mpb = VisualBlock;
+            mpb.SetColor(ColorId, c);
+            mpb.SetFloat(Time0Id, Time.time);
+            mpb.SetFloat(BassId, bass);
+            mpb.SetFloat(FlareId, BassOnsetEnv);
+            ApplyVisualBlock();
         }
     }
 }

@@ -50,6 +50,12 @@ namespace PlayVisualizer.Visuals
         /// </summary>
         void InjectVacuums(VacuumData vacuums);
 
+        /// <summary>
+        /// Queue "turbulent tears" (aggregated Swarm zones) that displace + stretch + raggedly eat the
+        /// field in its advection. No-op for patterns without a persistent advected field.
+        /// </summary>
+        void InjectTurbulence(TurbulenceData turbulence);
+
         /// <summary>Render the pattern into <paramref name="target"/>, optionally sampling the trail field.</summary>
         void Render(RenderTexture trailField, RenderTexture target);
 
@@ -100,6 +106,24 @@ namespace PlayVisualizer.Visuals
 
         /// <summary>Per slot: signed swirl direction/strength.</summary>
         public float[] Swirl = new float[Max];
+
+        public int Count;
+    }
+
+    /// <summary>
+    /// Aggregated Swarm turbulence zones handed to a field pattern each frame. Many swarm units are
+    /// bucketed into at most <see cref="Max"/> zones by the core; positions/radii/flow are in viewport
+    /// space. Must match TURB_MAX in SmokeField.shader.
+    /// </summary>
+    public class TurbulenceData
+    {
+        public const int Max = 6;
+
+        /// <summary>Per slot: (originU, originV, radiusV, agitation).</summary>
+        public Vector4[] Zones = new Vector4[Max];
+
+        /// <summary>Per slot: (flowX, flowY, stretch01, seed) — normalized viewport-space flow dir.</summary>
+        public Vector4[] Flow = new Vector4[Max];
 
         public int Count;
     }

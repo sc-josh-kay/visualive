@@ -46,8 +46,16 @@ namespace PlayVisualizer.Enemies
 
             if (VisualizerField.Instance != null)
             {
+                // Per-unit ragged bite — the unit's individual presence. Shreds faster with treble/flux.
                 VisualizerField.Instance.Consume(
-                    pos, _config.ConsumeRadius, _config.ConsumeStrengthPerSecond * dt);
+                    pos, _config.ConsumeRadius,
+                    _config.ConsumeStrengthPerSecond * (1f + agitation * _config.AgitationConsumeBoost) * dt);
+
+                // Turbulent tear: displace + stretch + raggedly eat the smoke along the unit's motion.
+                // Emitted per unit; the core aggregates nearby units into a few bounded turbulence
+                // zones, so this scales to the whole swarm without a per-unit shader array.
+                VisualizerField.Instance.Turbulence(
+                    pos, _config.TurbulenceRadius, agitation, dir);
             }
         }
 

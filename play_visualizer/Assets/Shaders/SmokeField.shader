@@ -28,6 +28,11 @@ Shader "PlayVisualizer/SmokeField"
         _VacPull ("Vacuum inward pull", Float) = 0.028
         _VacSwirlAmt ("Vacuum swirl", Float) = 0.05
         _VacEat ("Vacuum eat", Float) = 0.10
+        _TurbCount ("Turbulence zone count", Float) = 0
+        _TurbPush ("Turbulence directional push", Float) = 0.03
+        _TurbChurn ("Turbulence noise displacement", Float) = 0.022
+        _TurbStretch ("Turbulence stretch along flow", Float) = 0.05
+        _TurbEat ("Turbulence eat", Float) = 0.14
     }
     SubShader
     {
@@ -40,6 +45,7 @@ Shader "PlayVisualizer/SmokeField"
             #include "UnityCG.cginc"
 
             #define VAC_MAX 6
+            #define TURB_MAX 6
 
             sampler2D _MainTex;
             float4 _Center, _EmitColor;
@@ -48,6 +54,9 @@ Shader "PlayVisualizer/SmokeField"
             float _VacCount, _VacPull, _VacSwirlAmt, _VacEat;
             float4 _Vacuums[VAC_MAX]; // (u, v, radiusV, strength)
             float _VacSwirl[VAC_MAX]; // signed swirl per vacuum
+            float _TurbCount, _TurbPush, _TurbChurn, _TurbStretch, _TurbEat;
+            float4 _Turbs[TURB_MAX];    // (u, v, radiusV, agitation)
+            float4 _TurbFlow[TURB_MAX]; // (flowX, flowY, stretch01, seed)
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float2 uv : TEXCOORD0; float4 pos : SV_POSITION; };
@@ -58,6 +67,27 @@ Shader "PlayVisualizer/SmokeField"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv;
                 return o;
+            }
+
+            // Cheap hash-based value noise (no textures) for the turbulent tear. 2 octaves of fbm.
+            float hash21(float2 v)
+            {
+                return frac(sin(dot(v, float2(127.1, 311.7))) * 43758.5453);
+            }
+            float vnoise(float2 v)
+            {
+                float2 ip = floor(v);
+                float2 fp = frac(v);
+                fp = fp * fp * (3.0 - 2.0 * fp);
+                float a = hash21(ip);
+                float b = hash21(ip + float2(1.0, 0.0));
+                float c = hash21(ip + float2(0.0, 1.0));
+                float dd = hash21(ip + float2(1.0, 1.0));
+                return lerp(lerp(a, b, fp.x), lerp(c, dd, fp.x), fp.y);
+            }
+            float fbm2(float2 v)
+            {
+                return vnoise(v) * 0.65 + vnoise(v * 2.03 + 7.3) * 0.35;
             }
 
             float3 hueShift(float3 c, float a)
@@ -100,6 +130,43 @@ Shader "PlayVisualizer/SmokeField"
                         float2 perp = float2(-dir.y, dir.x) * _VacSwirl[k];
                         offset += (dir * _VacPull + perp * _VacSwirlAmt) * v.w * fo;
                         eat *= saturate(1.0 - _VacEat * v.w * fo);
+                    }
+                }
+
+                // Turbulence zones (Swarm): each aggregated zone TEARS the smoke as it moves through it
+                // — a noisy directional displacement (drag along the flow + churn), a STRETCH that
+                // samples further along the flow axis (smoke elongates into ragged streaks), and a
+                // noise-modulated EAT that leaves a ragged hole. Agitation (treble/flux) scales all
+                // three, so a high-treble section shreds faster. Bounded to TURB_MAX zones.
+                int tcount = (int)_TurbCount;
+                for (int t = 0; t < TURB_MAX; t++)
+                {
+                    if (t >= tcount) break;
+                    float4 z = _Turbs[t];
+                    float2 pz = i.uv - z.xy;
+                    pz.x *= _Aspect;
+                    float dz = length(pz);
+                    if (dz < z.z)
+                    {
+                        float fo = 1.0 - dz / z.z;
+                        fo *= fo;
+                        float agit = z.w;
+                        float4 fl = _TurbFlow[t];
+                        float2 flow = fl.xy; // normalized viewport-space flow (aspect-corrected)
+                        float seed = fl.w;
+
+                        // Churn: fbm-driven displacement vector, animated + per-zone seed.
+                        float2 np = pz * 9.0 + float2(seed, seed * 1.7) + _Time0 * 1.3;
+                        float2 churn = float2(fbm2(np) - 0.5, fbm2(np + 19.7) - 0.5) * 2.0;
+
+                        // Stretch: pull the sample further BACK along the flow so existing smoke smears
+                        // forward into a streak (anisotropic advection along the flow axis).
+                        float2 stretch = -flow * (_TurbStretch * fl.z);
+
+                        offset += (flow * _TurbPush + churn * _TurbChurn + stretch) * (0.4 + agit) * fo;
+
+                        float ragged = fbm2(pz * 7.0 + seed - _Time0 * 0.6);
+                        eat *= saturate(1.0 - _TurbEat * (0.4 + agit) * fo * ragged);
                     }
                 }
 

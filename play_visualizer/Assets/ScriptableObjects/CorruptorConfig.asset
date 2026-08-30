@@ -42,3 +42,5 @@ MonoBehaviour:
   TrebleJitter: 0.35
   FluxAgitation: 0.35
   TrebleCohesionLoss: 0.5
+  TurbulenceRadius: 1.1
+  AgitationConsumeBoost: 1.2

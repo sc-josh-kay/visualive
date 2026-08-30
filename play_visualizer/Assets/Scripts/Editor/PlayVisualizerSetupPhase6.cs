@@ -113,7 +113,7 @@ namespace PlayVisualizer.EditorTools
                 EnemySpawner.MusicChannel.Energy, 0.5f, 0);
             // Corruptors are hard — cap at 6 alive at once.
             SetEntry(arr.GetArrayElementAtIndex(1), corruptor, 0.25f, 1, 1, 0f, 0.2f,
-                EnemySpawner.MusicChannel.Bass, 0.85f, 6);
+                EnemySpawner.MusicChannel.Bass, 0.85f, 4);
             SetEntry(arr.GetArrayElementAtIndex(2), swarm, 0.5f, 6, 10, 1.8f, 0.35f,
                 EnemySpawner.MusicChannel.Treble, 0.85f, 0);
             so.ApplyModifiedPropertiesWithoutUndo();

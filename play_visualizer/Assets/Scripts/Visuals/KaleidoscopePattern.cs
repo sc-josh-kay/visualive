@@ -70,6 +70,7 @@ namespace PlayVisualizer.Visuals
         private Material _splatMat;
         private SplatData _splats;
         private VacuumData _vacuums;
+        private TurbulenceData _turbulence;
         private RenderTexture _a, _b;
         private bool _ping;
         private int _w, _h;
@@ -153,6 +154,11 @@ namespace PlayVisualizer.Visuals
             _vacuums = vacuums;
         }
 
+        public void InjectTurbulence(TurbulenceData turbulence)
+        {
+            _turbulence = turbulence;
+        }
+
         public void Render(RenderTexture trailField, RenderTexture target)
         {
             EnsureFields(target.width, target.height);
@@ -164,6 +170,15 @@ namespace PlayVisualizer.Visuals
             {
                 _smoke.SetVectorArray("_Vacuums", _vacuums.Vacuums);
                 _smoke.SetFloatArray("_VacSwirl", _vacuums.Swirl);
+            }
+
+            // Turbulence zones (Swarm) also modify the advection — set them before the advect blit.
+            int tc = _turbulence != null ? _turbulence.Count : 0;
+            _smoke.SetFloat("_TurbCount", tc);
+            if (tc > 0)
+            {
+                _smoke.SetVectorArray("_Turbs", _turbulence.Zones);
+                _smoke.SetVectorArray("_TurbFlow", _turbulence.Flow);
             }
 
             RenderTexture src = _ping ? _b : _a;

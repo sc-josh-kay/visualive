@@ -23,6 +23,18 @@ namespace PlayVisualizer.Visuals
         public float Swirl;     // signed swirl direction/strength
     }
 
+    /// <summary>
+    /// A "turbulent tear": a Swarm unit churning through the smoke — noisy directional displacement +
+    /// stretch + ragged consume. Many units are aggregated by the core into a few bounded zones.
+    /// </summary>
+    public struct TurbulenceRequest
+    {
+        public Vector2 WorldPos;
+        public float WorldRadius;
+        public float Agitation;   // 0..1 treble/flux-driven shred intensity
+        public Vector2 FlowDir;   // world-space direction the unit is moving (need not be normalized)
+    }
+
     /// <summary>A single gameplay request to modify the visualizer field (world space).</summary>
     public struct FieldSplat
     {
@@ -74,6 +86,7 @@ namespace PlayVisualizer.Visuals
         private readonly List<FieldSplat> _pending = new List<FieldSplat>();
         private readonly List<DistortRequest> _distorts = new List<DistortRequest>();
         private readonly List<VacuumRequest> _vacuums = new List<VacuumRequest>();
+        private readonly List<TurbulenceRequest> _turbulence = new List<TurbulenceRequest>();
 
         /// <summary>
         /// A Corruptor "black hole": pull + swirl the smoke field inward at this point and eat it
@@ -98,6 +111,32 @@ namespace PlayVisualizer.Visuals
             dest.Clear();
             dest.AddRange(_vacuums);
             _vacuums.Clear();
+        }
+
+        /// <summary>
+        /// A Swarm unit "turbulent tear": it displaces, stretches, and raggedly consumes the smoke as
+        /// it moves through it. Emitted per unit; the core aggregates nearby units into a few bounded
+        /// turbulence zones (the advection array is capped), so this scales to the whole swarm.
+        /// Agitation (treble/flux) grows the shred; reduces coverage (the eat).
+        /// </summary>
+        public void Turbulence(Vector2 worldPos, float worldRadius, float agitation, Vector2 flowDir)
+        {
+            if (worldRadius <= 0f) return;
+            _turbulence.Add(new TurbulenceRequest
+            {
+                WorldPos = worldPos,
+                WorldRadius = worldRadius,
+                Agitation = Mathf.Clamp01(agitation),
+                FlowDir = flowDir
+            });
+        }
+
+        /// <summary>Hand queued turbulence requests to the core and clear them. Called once per frame.</summary>
+        public void DrainTurbulence(List<TurbulenceRequest> dest)
+        {
+            dest.Clear();
+            dest.AddRange(_turbulence);
+            _turbulence.Clear();
         }
 
         /// <summary>

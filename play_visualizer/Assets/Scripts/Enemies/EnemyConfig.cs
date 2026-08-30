@@ -113,5 +113,14 @@ namespace PlayVisualizer.Enemies
         [Range(0f, 1f)] public float FluxAgitation = 0.35f;
         [Tooltip("Fraction of flock cohesion lost at full treble (frantic scattering).")]
         [Range(0f, 1f)] public float TrebleCohesionLoss = 0.5f;
+
+        [Header("Swarm — turbulent tear")]
+        [Tooltip("World radius of the turbulent-tear field each unit emits (displaces/stretches/eats " +
+                 "the smoke along its motion). Nearby units are aggregated into shared zones.")]
+        public float TurbulenceRadius = 1.1f;
+
+        [Tooltip("Extra per-unit consume rate at full agitation (treble/flux), as a fraction " +
+                 "(1 = up to +100% shred rate on a high-treble section).")]
+        [Range(0f, 3f)] public float AgitationConsumeBoost = 1.2f;
     }
 }

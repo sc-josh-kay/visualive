@@ -90,7 +90,7 @@ namespace PlayVisualizer.Gameplay
                 ? Mathf.Clamp01(VisualizerField.Instance.Coverage)
                 : 0f;
 
-            ScoreRate = _scorePerSecondMax * Mathf.Pow(coverage, _coverageExponent);
+            ScoreRate = _scorePerSecondMax * Mathf.Pow(coverage, _coverageExponent) * OverdriveScoreMultiplier;
             _scoreAccum += ScoreRate * dt;
 
             // Run stats.
@@ -112,6 +112,10 @@ namespace PlayVisualizer.Gameplay
             }
         }
 
+        /// <summary>Overdrive score multiplier (1 when inactive), stacked on top of the combo (spec9 §14).</summary>
+        private static float OverdriveScoreMultiplier =>
+            VisualizerMomentum.Instance != null ? VisualizerMomentum.Instance.ScoreMultiplier : 1f;
+
         /// <summary>Discrete bonus, e.g. an enemy kill on top of the coverage it restores.</summary>
         public void AddScore(int points)
         {
@@ -119,7 +123,7 @@ namespace PlayVisualizer.Gameplay
             {
                 return;
             }
-            _scoreAccum += points;
+            _scoreAccum += points * OverdriveScoreMultiplier;
             int newScore = (int)_scoreAccum;
             if (newScore != Score)
             {

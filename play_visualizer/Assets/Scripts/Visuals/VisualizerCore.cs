@@ -148,6 +148,14 @@ namespace PlayVisualizer.Visuals
             float dt = Time.deltaTime;
             float intensity = _intensity.Update(s.Energy, dt);
 
+            // Overdrive (spec9 §13): lightly amplify the visualizer's own response while active. Read
+            // through VisualizerField so the render core never depends on gameplay directly. Kept
+            // small — the radial paint waves are the primary Overdrive visual, not this.
+            float overdrive = VisualizerField.Instance != null
+                ? Mathf.Clamp01(VisualizerField.Instance.OverdriveIntensity)
+                : 0f;
+            if (overdrive > 0f) intensity = Mathf.Min(1.5f, intensity + overdrive * 0.35f);
+
             // Ripples: advance, spawn on onset/beat at the player.
             _ripples.Update(dt);
             double dsp = AudioSettings.dspTime;
@@ -257,7 +265,10 @@ namespace PlayVisualizer.Visuals
                 Vector3 vp = _mainCamera.WorldToViewportPoint(sp.WorldPos);
                 float radiusV = orthoH > 0f ? sp.WorldRadius / orthoH : 0.05f;
                 _splatData.Splats[i] = new Vector4(vp.x, vp.y, radiusV, sp.Strength);
-                float mode = sp.Mode == SplatMode.Paint ? 1f : -1f;
+                // Shader mode: 1 = paint disc, -1 = consume, 2 = ring paint (Overdrive wavefront).
+                float mode = sp.Mode == SplatMode.PaintRing ? 2f
+                           : sp.Mode == SplatMode.Paint ? 1f
+                           : -1f;
                 _splatData.Colors[i] = new Vector4(sp.Color.r, sp.Color.g, sp.Color.b, mode);
             }
             _splatData.Count = n;

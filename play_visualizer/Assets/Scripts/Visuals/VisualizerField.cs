@@ -5,7 +5,7 @@ using PlayVisualizer.Audio;
 namespace PlayVisualizer.Visuals
 {
     /// <summary>How a queued splat affects the field.</summary>
-    public enum SplatMode { Paint, Consume }
+    public enum SplatMode { Paint, Consume, PaintRing }
 
     /// <summary>A transient distortion request (world space) — a ripple, no coverage.</summary>
     public struct DistortRequest
@@ -76,6 +76,14 @@ namespace PlayVisualizer.Visuals
         /// Defaults to 1 so the visualizer paints normally before any gameplay writes it.
         /// </summary>
         public float PlayerPaintGain = 1f;
+
+        /// <summary>
+        /// Overdrive intensity (0..1), written by gameplay (VisualizerMomentum) and read by the
+        /// visualizer to lightly amplify its own effects (spec9 §13). Same write-by-gameplay /
+        /// read-by-visualizer channel as <see cref="PlayerPaintGain"/> — gameplay never touches
+        /// shaders. 0 = normal play.
+        /// </summary>
+        public float OverdriveIntensity = 0f;
 
         /// <summary>World position of the densest painted region — the point enemies seek (spec §4).</summary>
         public Vector2 HotWorldPos { get; private set; }
@@ -229,6 +237,25 @@ namespace PlayVisualizer.Visuals
                 Color = MusicColor.From(state),
                 Strength = Mathf.Max(0f, intensity),
                 Mode = SplatMode.Paint
+            });
+        }
+
+        /// <summary>
+        /// Deposit paint along an expanding RING (annulus) rather than a filled disc — the wavefront
+        /// of an Overdrive paint wave (spec9 §6). <paramref name="worldRadius"/> is the ring's current
+        /// radius; the band width is a shader constant (fraction of radius). Persists/advects/fades in
+        /// the field like any painted content. Color inherits the current musical moment.
+        /// </summary>
+        public void PaintRing(Vector2 worldPos, float worldRadius, float intensity, MusicState state)
+        {
+            if (intensity <= 0f || worldRadius <= 0f) return;
+            _pending.Add(new FieldSplat
+            {
+                WorldPos = worldPos,
+                WorldRadius = worldRadius,
+                Color = MusicColor.From(state),
+                Strength = Mathf.Max(0f, intensity),
+                Mode = SplatMode.PaintRing
             });
         }
 

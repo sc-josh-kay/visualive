@@ -73,7 +73,7 @@ namespace PlayVisualizer.Visuals
     public class SplatData
     {
         // Must match MAX_SPLATS in FieldSplat.shader.
-        public const int Max = 48;
+        public const int Max = 64;
 
         /// <summary>Per slot: (originU, originV, radiusV, strength).</summary>
         public Vector4[] Splats = new Vector4[Max];

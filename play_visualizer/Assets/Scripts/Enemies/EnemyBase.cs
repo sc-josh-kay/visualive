@@ -394,9 +394,15 @@ namespace PlayVisualizer.Enemies
             // The EXPLOSION is the payoff (spec7 §11): a persistent color burst painted into the field,
             // scaled by the music (Bass → radius, Energy → brightness, Beat → pulse) AND the combo, so
             // rapid kills produce dramatically bigger coverage bursts. Killing = the real way to paint.
+            // Overdrive boosts the persistent paint a kill generates (spec9 §14), stacking with combo.
+            float overdrivePaint = VisualizerMomentum.Instance != null
+                ? VisualizerMomentum.Instance.DeathPaintMultiplier
+                : 1f;
+
             Vector2 at = transform.position;
             float radius = DeathPaintRadius * (1f + 0.6f * bass) * (0.7f + 0.3f * mult);
-            float intensity = DeathPaintIntensity * (0.7f + 0.6f * energy) * (beat ? 1.3f : 1f) * (0.6f + 0.4f * mult);
+            float intensity = DeathPaintIntensity * (0.7f + 0.6f * energy) * (beat ? 1.3f : 1f)
+                              * (0.6f + 0.4f * mult) * overdrivePaint;
             if (VisualizerField.Instance != null)
             {
                 VisualizerField.Instance.Paint(at, radius, intensity, s);

@@ -12,6 +12,7 @@ Shader "PlayVisualizer/FieldSplat"
         _Aspect ("Aspect", Float) = 1.777
         _Count ("Splat count", Float) = 0
         _Time0 ("Time", Float) = 0
+        _PaintRingWidth ("Paint ring width (fraction of radius)", Float) = 0.35
     }
     SubShader
     {
@@ -23,12 +24,13 @@ Shader "PlayVisualizer/FieldSplat"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            #define MAX_SPLATS 48
+            #define MAX_SPLATS 64
 
             sampler2D _MainTex;
             float _Aspect;
             float _Count;
             float _Time0;
+            float _PaintRingWidth;
             float4 _Splats[MAX_SPLATS];       // (u, v, radiusV, strength)
             float4 _SplatColors[MAX_SPLATS];  // (r, g, b, mode)
 
@@ -59,7 +61,18 @@ Shader "PlayVisualizer/FieldSplat"
                     float radius = max(sp.z, 1e-4);
                     float4 sc = _SplatColors[s];
 
-                    if (sc.w > 0.0)
+                    if (sc.w > 1.5)
+                    {
+                        // Ring paint (Overdrive wavefront): additive color deposited in a soft band
+                        // around the ring radius, with a mild angular wobble so it reads as a living
+                        // ripple rather than a perfect circle. The band width is a fraction of radius.
+                        float ang = atan2(p.y, p.x);
+                        float wob = 1.0 + 0.12 * sin(ang * 5.0 + _Time0 * 3.0 + dot(sp.xy, float2(19.0, 7.0)));
+                        float w = max(radius * _PaintRingWidth * wob, 1e-4);
+                        float band = smoothstep(w, 0.0, abs(d - radius));
+                        if (band > 0.0) col += sc.rgb * sp.w * band;
+                    }
+                    else if (sc.w > 0.0)
                     {
                         // Paint: additive color burst (uniform disc).
                         float falloff = smoothstep(radius, 0.0, d);

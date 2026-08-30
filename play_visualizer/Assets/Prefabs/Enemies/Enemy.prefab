@@ -267,3 +267,4 @@ MonoBehaviour:
   _activitySmoothing: 8
   _centerBrightness: 0.3
   _centerBassPulse: 0.25
+  _hueRange: 0.13

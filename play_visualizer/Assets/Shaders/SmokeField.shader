@@ -24,6 +24,10 @@ Shader "PlayVisualizer/SmokeField"
         _PopStrength ("Pop strength", Float) = 0
         _Treble ("Treble sparkle", Float) = 0
         _Time0 ("Time", Float) = 0
+        _VacCount ("Vacuum count", Float) = 0
+        _VacPull ("Vacuum inward pull", Float) = 0.028
+        _VacSwirlAmt ("Vacuum swirl", Float) = 0.05
+        _VacEat ("Vacuum eat", Float) = 0.10
     }
     SubShader
     {
@@ -35,10 +39,15 @@ Shader "PlayVisualizer/SmokeField"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
+            #define VAC_MAX 6
+
             sampler2D _MainTex;
             float4 _Center, _EmitColor;
             float _Aspect, _Flow, _Swirl, _Warp, _WarpFreq, _WarpSpeed, _Fade, _Hue;
             float _BlobRadius, _RingRadius, _RingWidth, _BaseStrength, _PopStrength, _Treble, _Time0;
+            float _VacCount, _VacPull, _VacSwirlAmt, _VacEat;
+            float4 _Vacuums[VAC_MAX]; // (u, v, radiusV, strength)
+            float _VacSwirl[VAC_MAX]; // signed swirl per vacuum
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float2 uv : TEXCOORD0; float4 pos : SV_POSITION; };
@@ -69,10 +78,35 @@ Shader "PlayVisualizer/SmokeField"
                 float2 tang = float2(-p.y, p.x) / max(d, 1e-4);
                 float2 wave = float2(sin(i.uv.y * _WarpFreq * 6.2831853 + _Time0 * _WarpSpeed),
                                      sin(i.uv.x * _WarpFreq * 6.2831853 - _Time0 * _WarpSpeed));
-                float2 ps = p * (1.0 - _Flow) + tang * _Swirl + wave * _Warp;
+                // Base advection offset (aspect space): outward from the player + swirl + warp.
+                float2 offset = -_Flow * p + tang * _Swirl + wave * _Warp;
+
+                // Vacuums (Corruptors): sample from further OUT + tangential → content is pulled IN
+                // and swirls toward the center, which then EATS (fades) what it draws in — a drain.
+                float eat = 1.0;
+                int vcount = (int)_VacCount;
+                for (int k = 0; k < VAC_MAX; k++)
+                {
+                    if (k >= vcount) break;
+                    float4 v = _Vacuums[k];
+                    float2 pv = i.uv - v.xy;
+                    pv.x *= _Aspect;
+                    float dv = length(pv);
+                    if (dv < v.z)
+                    {
+                        float fo = 1.0 - dv / v.z;
+                        fo *= fo;
+                        float2 dir = pv / max(dv, 1e-4);
+                        float2 perp = float2(-dir.y, dir.x) * _VacSwirl[k];
+                        offset += (dir * _VacPull + perp * _VacSwirlAmt) * v.w * fo;
+                        eat *= saturate(1.0 - _VacEat * v.w * fo);
+                    }
+                }
+
+                float2 ps = offset;
                 ps.x /= _Aspect;
-                float3 prev = tex2D(_MainTex, _Center.xy + ps).rgb;
-                prev = hueShift(prev, _Hue) * _Fade;
+                float3 prev = tex2D(_MainTex, i.uv + ps).rgb;
+                prev = hueShift(prev, _Hue) * _Fade * eat;
 
                 // Emission at the player: soft blob (trail) + ring pop + treble sparkle.
                 float blob = smoothstep(_BlobRadius, 0.0, d);

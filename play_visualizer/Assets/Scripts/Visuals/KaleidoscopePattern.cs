@@ -69,6 +69,7 @@ namespace PlayVisualizer.Visuals
         private Transform _player;
         private Material _splatMat;
         private SplatData _splats;
+        private VacuumData _vacuums;
         private RenderTexture _a, _b;
         private bool _ping;
         private int _w, _h;
@@ -147,9 +148,23 @@ namespace PlayVisualizer.Visuals
             _splats = splats;
         }
 
+        public void InjectVacuums(VacuumData vacuums)
+        {
+            _vacuums = vacuums;
+        }
+
         public void Render(RenderTexture trailField, RenderTexture target)
         {
             EnsureFields(target.width, target.height);
+
+            // Vacuums (Corruptors) modify the advection, so set them on the smoke material first.
+            int vc = _vacuums != null ? _vacuums.Count : 0;
+            _smoke.SetFloat("_VacCount", vc);
+            if (vc > 0)
+            {
+                _smoke.SetVectorArray("_Vacuums", _vacuums.Vacuums);
+                _smoke.SetFloatArray("_VacSwirl", _vacuums.Swirl);
+            }
 
             RenderTexture src = _ping ? _b : _a;
             RenderTexture dst = _ping ? _a : _b;

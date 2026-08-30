@@ -14,6 +14,15 @@ namespace PlayVisualizer.Visuals
         public float Strength;
     }
 
+    /// <summary>A "black-hole" vacuum: pull + swirl the smoke inward at a point, then eat it.</summary>
+    public struct VacuumRequest
+    {
+        public Vector2 WorldPos;
+        public float WorldRadius;
+        public float Strength;  // 0..1 pull/eat intensity
+        public float Swirl;     // signed swirl direction/strength
+    }
+
     /// <summary>A single gameplay request to modify the visualizer field (world space).</summary>
     public struct FieldSplat
     {
@@ -64,6 +73,32 @@ namespace PlayVisualizer.Visuals
 
         private readonly List<FieldSplat> _pending = new List<FieldSplat>();
         private readonly List<DistortRequest> _distorts = new List<DistortRequest>();
+        private readonly List<VacuumRequest> _vacuums = new List<VacuumRequest>();
+
+        /// <summary>
+        /// A Corruptor "black hole": pull + swirl the smoke field inward at this point and eat it
+        /// (like water down a drain). Radius/strength grow with bass. Drained by the core into the
+        /// smoke pattern's advection. Reduces coverage (the eat), replacing the plain consume.
+        /// </summary>
+        public void Vacuum(Vector2 worldPos, float worldRadius, float strength, float swirl)
+        {
+            if (strength <= 0f || worldRadius <= 0f) return;
+            _vacuums.Add(new VacuumRequest
+            {
+                WorldPos = worldPos,
+                WorldRadius = worldRadius,
+                Strength = Mathf.Clamp01(strength),
+                Swirl = swirl
+            });
+        }
+
+        /// <summary>Hand queued vacuums to the core and clear them. Called once per frame.</summary>
+        public void DrainVacuums(List<VacuumRequest> dest)
+        {
+            dest.Clear();
+            dest.AddRange(_vacuums);
+            _vacuums.Clear();
+        }
 
         /// <summary>
         /// Transiently DISTORT the visualizer at a world point (a ripple), WITHOUT adding coverage —

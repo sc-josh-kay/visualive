@@ -44,6 +44,12 @@ namespace PlayVisualizer.Visuals
         /// </summary>
         void InjectSplats(SplatData splats);
 
+        /// <summary>
+        /// Queue "black-hole" vacuums (Corruptors) that pull + swirl + eat the field in its advection.
+        /// No-op for patterns without a persistent advected field.
+        /// </summary>
+        void InjectVacuums(VacuumData vacuums);
+
         /// <summary>Render the pattern into <paramref name="target"/>, optionally sampling the trail field.</summary>
         void Render(RenderTexture trailField, RenderTexture target);
 
@@ -78,5 +84,23 @@ namespace PlayVisualizer.Visuals
         /// <summary>Per slot: (originU, originV, radius, strength). Length = RippleSystem.Max.</summary>
         public Vector4[] Ripples;
         public float Width;
+    }
+
+    /// <summary>
+    /// Vacuum points (Corruptors) handed to a field pattern each frame. Positions/radii are in
+    /// viewport space; written by the core from <c>VisualizerField</c> requests.
+    /// </summary>
+    public class VacuumData
+    {
+        // Must match VAC_MAX in SmokeField.shader.
+        public const int Max = 6;
+
+        /// <summary>Per slot: (originU, originV, radiusV, strength).</summary>
+        public Vector4[] Vacuums = new Vector4[Max];
+
+        /// <summary>Per slot: signed swirl direction/strength.</summary>
+        public float[] Swirl = new float[Max];
+
+        public int Count;
     }
 }

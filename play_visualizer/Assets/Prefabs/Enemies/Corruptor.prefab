@@ -115,6 +115,7 @@ MonoBehaviour:
   _collisionBurstPrefab: {fileID: 70186451503972298, guid: d13568366add84704ae6ed7485f0e02f, type: 3}
   _visualRoot: {fileID: 3975083955522421792}
   _visualRenderer: {fileID: 6088911896566208498}
+  _spiralSpin: 1.6
 --- !u!1 &6075783386739175405
 GameObject:
   m_ObjectHideFlags: 0
@@ -126,6 +127,7 @@ GameObject:
   - component: {fileID: 3975083955522421792}
   - component: {fileID: 7291988211890948031}
   - component: {fileID: 6088911896566208498}
+  - component: {fileID: 4412365218994095824}
   m_Layer: 0
   m_Name: Visual
   m_TagString: Untagged
@@ -205,3 +207,32 @@ MeshRenderer:
   m_SortingOrder: 8
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &4412365218994095824
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6075783386739175405}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 950ee97ba0a704cb99d992656b54902f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.CorruptorVisualizer
+  _lineMaterial: {fileID: 2100000, guid: cf9b1803d1f95463b94b1c6bd2cd12fa, type: 2}
+  _speckleMaterial: {fileID: 2100000, guid: 511f4c02aeda745bca20fa8a99efe329, type: 2}
+  _teal: {r: 0.1, g: 0.95, b: 1, a: 1}
+  _purple: {r: 0.6, g: 0.3, b: 1, a: 1}
+  _pink: {r: 1, g: 0.25, b: 0.8, a: 1}
+  _outerRadius: 0.5
+  _wavePoints: 48
+  _waveHalfWidth: 0.6
+  _waveAmp: 0.14
+  _waveWidth: 0.02
+  _waveBaseBright: 0.55
+  _waveBassBright: 1.3
+  _speckleRate: 14
+  _speckleBurst: 26
+  _speckleSpeed: 1.1
+  _speckleLife: 1.2
+  _speckleSize: 0.09

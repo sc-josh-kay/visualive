@@ -35,6 +35,8 @@ namespace PlayVisualizer.Enemies
             public MusicChannel Channel;
             [Tooltip("How strongly the channel biases the base weight. 0 = ignore, 0.8 = strong.")]
             [Range(0f, 1f)] public float MusicInfluence;
+            [Tooltip("Max of this type alive at once. 0 = unlimited (e.g. cap Corruptors at 6).")]
+            [Min(0)] public int MaxAlive;
         }
 
         [SerializeField] private SpawnerConfig _config;
@@ -275,7 +277,20 @@ namespace PlayVisualizer.Enemies
 
         private bool IsEligible(SpawnEntry e)
         {
-            return e.Prefab != null && e.Weight > 0f && SongProgress >= e.MinSongProgress;
+            if (e.Prefab == null || e.Weight <= 0f || SongProgress < e.MinSongProgress) return false;
+            if (e.MaxAlive > 0 && CountAlive(e.Prefab.GetType()) >= e.MaxAlive) return false;
+            return true;
+        }
+
+        private int CountAlive(System.Type type)
+        {
+            int n = 0;
+            for (int i = 0; i < _alive.Count; i++)
+            {
+                EnemyBase a = _alive[i];
+                if (a != null && a.GetType() == type) n++;
+            }
+            return n;
         }
     }
 }

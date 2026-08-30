@@ -9230,7 +9230,34 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.EnemySpawner
   _config: {fileID: 11400000, guid: 13b020734d17b4884bae9bd685723435, type: 2}
-  _entries: []
+  _entries:
+  - Prefab: {fileID: 2276216332114955974, guid: c6675b80332d84115a2949775d84f21b, type: 3}
+    Weight: 1
+    GroupMin: 1
+    GroupMax: 1
+    GroupSpread: 0
+    MinSongProgress: 0
+    Channel: 1
+    MusicInfluence: 0.5
+    MaxAlive: 0
+  - Prefab: {fileID: 4476473314769462238, guid: 2c8a5ddadfd1749f8b7204f5ba94d554, type: 3}
+    Weight: 0.25
+    GroupMin: 1
+    GroupMax: 1
+    GroupSpread: 0
+    MinSongProgress: 0.2
+    Channel: 2
+    MusicInfluence: 0.85
+    MaxAlive: 6
+  - Prefab: {fileID: 8779410442572408450, guid: 94efb30348a6d4df4a360b1dc2cfa369, type: 3}
+    Weight: 0.5
+    GroupMin: 6
+    GroupMax: 10
+    GroupSpread: 1.8
+    MinSongProgress: 0.35
+    Channel: 3
+    MusicInfluence: 0.85
+    MaxAlive: 0
   _enemyPrefab: {fileID: 2276216332114955974, guid: c6675b80332d84115a2949775d84f21b, type: 3}
   _player: {fileID: 577677374}
 --- !u!4 &1573894437

@@ -65,10 +65,16 @@ namespace PlayVisualizer.EditorTools
             Material blackHoleMat = LoadOrCreateMaterial("Assets/Materials/EnemyBlackHole.mat", "PlayVisualizer/EnemyBlackHole");
             Material starMat = LoadOrCreateMaterial("Assets/Materials/EnemyStar.mat", "PlayVisualizer/EnemyStar");
 
+            // Corruptor overlay materials: EnergyTrail for the rings/waveform, EnergySprite (+ SoftGlow) for speckles.
+            Material lineMat = LoadOrCreateMaterial("Assets/Materials/EnergyTrail.mat", "PlayVisualizer/EnergyTrail");
+            Material speckleMat = LoadOrCreateMaterial("Assets/Materials/EnergySprite.mat", "PlayVisualizer/EnergySprite");
+            Sprite softGlow = LoadOrGenerateSoftGlow("Assets/Art/SoftGlow.png");
+            if (speckleMat != null && softGlow != null) { speckleMat.mainTexture = softGlow.texture; EditorUtility.SetDirty(speckleMat); }
+
             EnemyBase corruptor = BuildEnemyPrefab("Corruptor", PrefabDir + "/Corruptor.prefab",
-                typeof(Corruptor), blackHoleMat, corruptorConfig, deathPop, burst);
+                typeof(Corruptor), blackHoleMat, lineMat, speckleMat, corruptorConfig, deathPop, burst);
             EnemyBase swarm = BuildEnemyPrefab("SwarmUnit", PrefabDir + "/SwarmUnit.prefab",
-                typeof(SwarmUnit), starMat, swarmConfig, deathPop, burst);
+                typeof(SwarmUnit), starMat, null, null, swarmConfig, deathPop, burst);
 
             EnemyBase colorEater = LoadComponent<EnemyBase>("Assets/Prefabs/Enemies/Enemy.prefab");
             if (colorEater == null)
@@ -104,17 +110,18 @@ namespace PlayVisualizer.EditorTools
             // Each type's prevalence is biased by its musical character (spec8):
             //   Color Eater ← Energy, Corruptor ← Bass, Swarm ← Treble.
             SetEntry(arr.GetArrayElementAtIndex(0), colorEater, 1.0f, 1, 1, 0f, 0f,
-                EnemySpawner.MusicChannel.Energy, 0.5f);
+                EnemySpawner.MusicChannel.Energy, 0.5f, 0);
+            // Corruptors are hard — cap at 6 alive at once.
             SetEntry(arr.GetArrayElementAtIndex(1), corruptor, 0.25f, 1, 1, 0f, 0.2f,
-                EnemySpawner.MusicChannel.Bass, 0.85f);
+                EnemySpawner.MusicChannel.Bass, 0.85f, 6);
             SetEntry(arr.GetArrayElementAtIndex(2), swarm, 0.5f, 6, 10, 1.8f, 0.35f,
-                EnemySpawner.MusicChannel.Treble, 0.85f);
+                EnemySpawner.MusicChannel.Treble, 0.85f, 0);
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void SetEntry(SerializedProperty el, EnemyBase prefab, float weight,
             int gMin, int gMax, float spread, float minProgress,
-            EnemySpawner.MusicChannel channel, float influence)
+            EnemySpawner.MusicChannel channel, float influence, int maxAlive)
         {
             el.FindPropertyRelative("Prefab").objectReferenceValue = prefab;
             el.FindPropertyRelative("Weight").floatValue = weight;
@@ -124,12 +131,14 @@ namespace PlayVisualizer.EditorTools
             el.FindPropertyRelative("MinSongProgress").floatValue = minProgress;
             el.FindPropertyRelative("Channel").enumValueIndex = (int)channel;
             el.FindPropertyRelative("MusicInfluence").floatValue = influence;
+            el.FindPropertyRelative("MaxAlive").intValue = maxAlive;
         }
 
         // ----------------------------------------------------------------- prefabs / configs
 
         private static EnemyBase BuildEnemyPrefab(string name, string path, System.Type component,
-            Material visualMat, EnemyConfig config, DeathPop deathPop, CollisionBurst burst)
+            Material visualMat, Material lineMat, Material speckleMat,
+            EnemyConfig config, DeathPop deathPop, CollisionBurst burst)
         {
             var go = new GameObject(name);
 
@@ -144,6 +153,14 @@ namespace PlayVisualizer.EditorTools
 
             // Procedural visual on a Visual child quad so music pulses never resize the collider.
             Renderer vr = EnemyVisualQuad.Build(go.transform, visualMat, out Transform visualRoot);
+
+            // Corruptor gets its crisp overlay (neon rings + audio waveform + speckles) on that child.
+            if (component == typeof(Corruptor) && lineMat != null)
+            {
+                var viz = visualRoot.gameObject.AddComponent<CorruptorVisualizer>();
+                AssignReference(viz, "_lineMaterial", lineMat);
+                if (speckleMat != null) AssignReference(viz, "_speckleMaterial", speckleMat);
+            }
 
             var enemy = (EnemyBase)go.AddComponent(component);
             AssignReference(enemy, "_config", config);
@@ -178,6 +195,39 @@ namespace PlayVisualizer.EditorTools
         {
             GameObject go = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
             return go != null ? go.GetComponent<T>() : null;
+        }
+
+        private static Sprite LoadOrGenerateSoftGlow(string path)
+        {
+            Sprite existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (existing != null) return existing;
+
+            const int size = 128;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float c = (size - 1) / 2f;
+            float maxR = size / 2f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x - c) / maxR, dy = (y - c) / maxR;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(Mathf.Exp(-d * d * 5f))));
+                }
+            }
+            tex.Apply();
+            byte[] png = tex.EncodeToPNG();
+            Object.DestroyImmediate(tex);
+            File.WriteAllBytes(path, png);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
+
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         private static Material LoadOrCreateMaterial(string path, string shaderName)

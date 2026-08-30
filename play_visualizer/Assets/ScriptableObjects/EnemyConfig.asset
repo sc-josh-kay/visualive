@@ -18,7 +18,7 @@ MonoBehaviour:
   Scale: 0.8
   ScoreValue: 100
   ConsumeRadius: 1.6
-  ConsumeStrengthPerSecond: 9.2
+  ConsumeStrengthPerSecond: 15
   DeathPaintRadius: 1.6
   DeathPaintIntensity: 1.2
   PlayerChaseRadius: 4
@@ -28,3 +28,17 @@ MonoBehaviour:
   HitConsumeRadius: 1.8
   HitConsumeStrength: 1
   HitBurstDuration: 0.35
+  CorruptStartRadius: 0.8
+  CorruptMaxRadius: 4
+  CorruptGrowSeconds: 8
+  SwarmCohesionRadius: 3
+  SwarmCohesionStrength: 0.6
+  EnergySpeedInfluence: 0.4
+  BeatPulseScale: 0.18
+  BeatImpulse: 2
+  BassPulseScale: 0.3
+  BassLungeImpulse: 2.5
+  BassCorruptRadius: 0.35
+  TrebleJitter: 0.35
+  FluxAgitation: 0.35
+  TrebleCohesionLoss: 0.5

@@ -65,7 +65,9 @@ namespace PlayVisualizer.Visuals
         private readonly CoverageSampler _coverage = new CoverageSampler();
         private readonly List<FieldSplat> _splatBuffer = new List<FieldSplat>();
         private readonly List<DistortRequest> _distortBuffer = new List<DistortRequest>();
+        private readonly List<VacuumRequest> _vacuumBuffer = new List<VacuumRequest>();
         private readonly SplatData _splatData = new SplatData();
+        private readonly VacuumData _vacuumData = new VacuumData();
         private Material _splatMat;
         private int _active;
         private Material _displayMat;
@@ -156,17 +158,18 @@ namespace PlayVisualizer.Visuals
 
             RippleData ripples = _ripples.Pack();
 
-            // Gameplay: pull queued enemy/player splats and the player's paint-gain throttle.
+            // Gameplay: pull queued enemy/player splats, vacuums, and the player's paint-gain throttle.
             BuildSplats();
+            BuildVacuums();
             float paintGain = VisualizerField.Instance != null
                 ? Mathf.Clamp01(VisualizerField.Instance.PlayerPaintGain)
                 : 1f;
 
             if (_fading)
             {
-                // Only the incoming pattern receives splats, so they aren't double-applied.
-                RenderPattern(_from, s, intensity, paintGain, dt, ripples, null, _targetA);
-                RenderPattern(_to, s, intensity, paintGain, dt, ripples, _splatData, _targetB);
+                // Only the incoming pattern receives splats/vacuums, so they aren't double-applied.
+                RenderPattern(_from, s, intensity, paintGain, dt, ripples, null, null, _targetA);
+                RenderPattern(_to, s, intensity, paintGain, dt, ripples, _splatData, _vacuumData, _targetB);
 
                 _fadeT += dt / Mathf.Max(0.01f, _fadeDuration);
                 _blendMat.SetTexture("_TexB", _targetB);
@@ -177,7 +180,7 @@ namespace PlayVisualizer.Visuals
             }
             else
             {
-                RenderPattern(_active, s, intensity, paintGain, dt, ripples, _splatData, _target);
+                RenderPattern(_active, s, intensity, paintGain, dt, ripples, _splatData, _vacuumData, _target);
             }
 
             if (_displayMat != null)
@@ -243,6 +246,35 @@ namespace PlayVisualizer.Visuals
             _splatData.Count = n;
         }
 
+        /// <summary>Drain vacuum (Corruptor) requests and convert them to viewport space for the smoke shader.</summary>
+        private void BuildVacuums()
+        {
+            _vacuumData.Count = 0;
+            VisualizerField field = VisualizerField.Instance;
+            if (field == null || _mainCamera == null)
+            {
+                return;
+            }
+
+            field.DrainVacuums(_vacuumBuffer);
+            if (_vacuumBuffer.Count == 0)
+            {
+                return;
+            }
+
+            float orthoH = _mainCamera.orthographic ? _mainCamera.orthographicSize * 2f : 1f;
+            int n = Mathf.Min(_vacuumBuffer.Count, VacuumData.Max);
+            for (int i = 0; i < n; i++)
+            {
+                VacuumRequest v = _vacuumBuffer[i];
+                Vector3 vp = _mainCamera.WorldToViewportPoint(v.WorldPos);
+                float radiusV = orthoH > 0f ? v.WorldRadius / orthoH : 0.1f;
+                _vacuumData.Vacuums[i] = new Vector4(vp.x, vp.y, radiusV, v.Strength);
+                _vacuumData.Swirl[i] = v.Swirl;
+            }
+            _vacuumData.Count = n;
+        }
+
         private void HandleKeys()
         {
             if (Keyboard.current == null) return;
@@ -262,11 +294,12 @@ namespace PlayVisualizer.Visuals
         }
 
         private void RenderPattern(int index, MusicState s, float intensity, float paintGain, float dt,
-            RippleData ripples, SplatData splats, RenderTexture target)
+            RippleData ripples, SplatData splats, VacuumData vacuums, RenderTexture target)
         {
             IVisualizerPattern p = _patterns[index];
             p.UpdatePattern(s, intensity, paintGain, dt);
             p.InjectSplats(splats);
+            p.InjectVacuums(vacuums);
             p.ApplyRipple(ripples);
             p.Render(null, target);
         }

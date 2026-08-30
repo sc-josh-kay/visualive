@@ -1,17 +1,21 @@
-// Corruptor visual: a black hole — a glowing event-horizon ring with a bright horizontal accretion
-// disk crossing the middle (extending past the ring), a dark center, and a bass-driven pulse/flare.
-// Driven via a MaterialPropertyBlock. Additive; warm by default. Distinct from the Color Eater ring
-// via the through-disk, size, and bass response.
+// Corruptor visual: a black hole with a SWIRLING multi-color glow — an event-horizon ring plus
+// rotating spiral arms, tinted between two palette colors (teal↔pink through purple), over a dark
+// center. Brightens/pulses with bass; flares on a bass onset. The crisp neon rings, the horizontal
+// audio waveform, and the drifting speckles are separate geometry/particles (CorruptorVisualizer).
+// Driven per-enemy via a MaterialPropertyBlock. Additive.
 Shader "PlayVisualizer/EnemyBlackHole"
 {
     Properties
     {
-        _Color ("Color", Color) = (1, 0.5, 0.15, 1)
+        _ColorA ("Color A", Color) = (0.1, 0.9, 1, 1)
+        _ColorB ("Color B", Color) = (1, 0.2, 0.8, 1)
         _Time0 ("Time", Float) = 0
         _Bass ("Bass", Float) = 0
         _Flare ("Bass-onset flare", Float) = 0
-        _Ring ("Ring softness", Float) = 0.04
-        _Disk ("Disk thickness", Float) = 0.06
+        _Ring ("Ring softness", Float) = 0.045
+        _Arms ("Spiral arms", Float) = 4
+        _Twist ("Spiral twist", Float) = 3
+        _Spin ("Spin speed", Float) = 1.1
     }
     SubShader
     {
@@ -26,8 +30,8 @@ Shader "PlayVisualizer/EnemyBlackHole"
             #pragma fragment frag
             #include "UnityCG.cginc"
 
-            float4 _Color;
-            float _Time0, _Bass, _Flare, _Ring, _Disk;
+            float4 _ColorA, _ColorB;
+            float _Time0, _Bass, _Flare, _Ring, _Arms, _Twist, _Spin;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float2 uv : TEXCOORD0; float4 pos : SV_POSITION; };
@@ -44,23 +48,26 @@ Shader "PlayVisualizer/EnemyBlackHole"
             {
                 float2 c = i.uv - 0.5;
                 float r = length(c) * 2.0;
+                if (r > 1.05) return fixed4(0, 0, 0, 0);
+                float ang = atan2(c.y, c.x);
 
                 // Event-horizon glow ring.
-                float ringR = 0.5;
-                float ring = _Ring / (abs(r - ringR) + _Ring);
+                float ring = _Ring / (abs(r - 0.5) + _Ring);
 
-                // Accretion disk: a bright horizontal bar across the middle, thickening with bass,
-                // extending past the ring, with a dark gap at the very center (the hole).
-                float diskThick = _Disk * (1.0 + _Bass * 0.7);
-                float bar = exp(-(c.y * c.y) / (2.0 * diskThick * diskThick));
-                bar *= smoothstep(1.1, 0.15, r);                 // fade out; dark hole center
-                bar *= 0.85 + 0.15 * sin(c.x * 40.0 + _Time0 * 3.0); // subtle shimmer
+                // Rotating spiral arms (the swirl), strongest in a mid-radius band.
+                float spiral = sin(_Arms * ang + _Twist * log(max(r, 0.04)) + _Time0 * _Spin);
+                float arms = pow(saturate(0.5 + 0.5 * spiral), 2.0);
+                float swirlEnv = smoothstep(0.08, 0.4, r) * smoothstep(1.0, 0.55, r);
+                float swirl = arms * swirlEnv;
 
-                float glow = ring * 0.6 + bar * (1.0 + _Bass * 0.8);
-                glow *= smoothstep(1.05, 0.82, r);
+                float glow = ring * 0.7 + swirl * (0.5 + _Bass * 0.7);
+                glow *= smoothstep(1.05, 0.8, r); // soft edge, dark center preserved
 
-                float3 col = _Color.rgb * glow
-                           + float3(1, 1, 1) * (bar * 0.35 + _Flare * ring * 0.4);
+                // Palette mix (teal ↔ pink) across angle + spiral, drifting with the spin.
+                float mix = 0.5 + 0.5 * sin(ang * 2.0 + _Time0 * _Spin * 0.5 + spiral * 0.5);
+                float3 palette = lerp(_ColorA.rgb, _ColorB.rgb, mix);
+
+                float3 col = palette * glow + float3(1, 1, 1) * (_Flare * ring * 0.3);
                 return fixed4(col, glow);
             }
             ENDCG

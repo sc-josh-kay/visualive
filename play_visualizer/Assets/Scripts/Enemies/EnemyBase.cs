@@ -413,8 +413,7 @@ namespace PlayVisualizer.Enemies
             Color c = CurrentColor;
             if (_collisionBurstPrefab != null)
             {
-                var burst = Instantiate(_collisionBurstPrefab, new Vector3(at.x, at.y, -0.1f), Quaternion.identity);
-                burst.Play(c, radius * 1.1f, 0.4f, 0f); // consumeStrength 0 → paints nothing
+                SpawnCollisionBurst(at, c, radius * 1.1f, 0.4f, 0f); // consumeStrength 0 → paints nothing
             }
             else if (_deathPopPrefab != null)
             {
@@ -422,7 +421,30 @@ namespace PlayVisualizer.Enemies
                 pop.Play(c);
             }
 
+            // Per-type death behaviour (e.g. the Splitter shattering into fragments). Runs while the
+            // enemy still exists, at the death position, before it is destroyed.
+            OnDeath(at, s);
+
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Hook for per-type death behaviour, called from <see cref="Die"/> after the death paint/flash
+        /// and before the object is destroyed. Default does nothing. Subclasses (e.g. Splitter) override
+        /// to spawn children, consume paint, etc.
+        /// </summary>
+        protected virtual void OnDeath(Vector2 at, MusicState s) { }
+
+        /// <summary>
+        /// Spawn a CollisionBurst firework (the hashed radial spark effect) at a point — reusable by
+        /// subclasses for extra death accents (e.g. the Splitter's deep-purple shatter). No-op if the
+        /// prefab isn't assigned. consumeStrength &gt; 0 also scoops paint (a "puff of blackness").
+        /// </summary>
+        protected void SpawnCollisionBurst(Vector2 at, Color color, float radius, float duration, float consumeStrength)
+        {
+            if (_collisionBurstPrefab == null) return;
+            var burst = Instantiate(_collisionBurstPrefab, new Vector3(at.x, at.y, -0.1f), Quaternion.identity);
+            burst.Play(color, radius, duration, consumeStrength);
         }
     }
 }

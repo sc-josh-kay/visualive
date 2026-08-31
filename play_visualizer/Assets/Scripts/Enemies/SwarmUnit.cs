@@ -16,6 +16,25 @@ namespace PlayVisualizer.Enemies
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int Time0Id = Shader.PropertyToID("_Time0");
         private static readonly int FlutterId = Shader.PropertyToID("_Flutter");
+        private static readonly int SeedId = Shader.PropertyToID("_Seed");
+        private static readonly int ArmsId = Shader.PropertyToID("_Arms");
+
+        // Per-unit visual identity, rolled once so no two units look identical (spec10 "waveform
+        // particles"): a warm base hue (orange→yellow→red, with an occasional deep purple), a shape
+        // seed (squiggle phase / orientation), and an arm count.
+        private float _baseHue;
+        private float _seed;
+        private float _arms;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            _baseHue = Random.value < 0.85f
+                ? Random.Range(0.00f, 0.11f)   // red → orange → yellow (dominant)
+                : Random.Range(0.76f, 0.80f);  // occasional deep purple
+            _seed = Random.value;
+            _arms = Random.Range(3, 7);         // 3..6 tendrils
+        }
 
         protected override void Behave(float dt)
         {
@@ -68,15 +87,17 @@ namespace PlayVisualizer.Enemies
             SetVisualOffset(Random.insideUnitCircle * (0.06f * agitation));
             SetVisualScale(1f + treble * 0.08f);
 
-            // Neon starfish whose arms flutter with treble/flux; neon red-purple (leaning red),
-            // shifting slightly toward red with treble.
-            Color c = Color.HSVToRGB(Mathf.Repeat(0.94f + treble * 0.04f, 1f), 0.9f, 1f);
+            // Warm "waveform particle": fixed per-unit hue (orange/yellow/red, some deep purple),
+            // brightening slightly with treble. The tendril agitation is driven by _Flutter in-shader.
+            Color c = Color.HSVToRGB(_baseHue, 0.85f, Mathf.Lerp(0.85f, 1f, treble));
             CurrentColor = c;
 
             var mpb = VisualBlock;
             mpb.SetColor(ColorId, c);
             mpb.SetFloat(Time0Id, Time.time);
             mpb.SetFloat(FlutterId, agitation);
+            mpb.SetFloat(SeedId, _seed);
+            mpb.SetFloat(ArmsId, _arms);
             ApplyVisualBlock();
         }
     }

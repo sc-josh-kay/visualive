@@ -325,6 +325,99 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 86901579}
   m_CullTransparentMesh: 1
+--- !u!1 &161621012
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 161621014}
+  - component: {fileID: 161621013}
+  m_Layer: 0
+  m_Name: EnemySpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &161621013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 161621012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 921afb3ad1a0847308dacb2f27a5140c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.EnemySpawner
+  _config: {fileID: 11400000, guid: 13b020734d17b4884bae9bd685723435, type: 2}
+  _entries:
+  - Prefab: {fileID: 2276216332114955974, guid: c6675b80332d84115a2949775d84f21b, type: 3}
+    Weight: 1
+    GroupMin: 1
+    GroupMax: 1
+    GroupSpread: 0
+    MinSongProgress: 0
+    Channel: 1
+    MusicInfluence: 0.5
+    MaxAlive: 0
+  - Prefab: {fileID: 4476473314769462238, guid: 2c8a5ddadfd1749f8b7204f5ba94d554, type: 3}
+    Weight: 0.25
+    GroupMin: 1
+    GroupMax: 1
+    GroupSpread: 0
+    MinSongProgress: 0.2
+    Channel: 2
+    MusicInfluence: 0.85
+    MaxAlive: 4
+  - Prefab: {fileID: 8779410442572408450, guid: 94efb30348a6d4df4a360b1dc2cfa369, type: 3}
+    Weight: 0.5
+    GroupMin: 6
+    GroupMax: 10
+    GroupSpread: 1.8
+    MinSongProgress: 0.35
+    Channel: 3
+    MusicInfluence: 0.85
+    MaxAlive: 0
+  - Prefab: {fileID: 1791765145087350224, guid: f5e8d7445cbf04f9ea8a5c2cfed708c1, type: 3}
+    Weight: 0.3
+    GroupMin: 1
+    GroupMax: 1
+    GroupSpread: 0
+    MinSongProgress: 0.4
+    Channel: 1
+    MusicInfluence: 0.4
+    MaxAlive: 2
+  - Prefab: {fileID: 8483834068607796342, guid: 605f444e73dda4678986a7c5a0ea2ad0, type: 3}
+    Weight: 0.4
+    GroupMin: 1
+    GroupMax: 1
+    GroupSpread: 0
+    MinSongProgress: 0.3
+    Channel: 4
+    MusicInfluence: 0.7
+    MaxAlive: 4
+  _enemyPrefab: {fileID: 2276216332114955974, guid: c6675b80332d84115a2949775d84f21b, type: 3}
+  _player: {fileID: 577677374}
+--- !u!4 &161621014
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 161621012}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &164705762
 GameObject:
   m_ObjectHideFlags: 0
@@ -2041,6 +2134,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Player.PlayerOverdriveVFX
   _config: {fileID: 11400000, guid: 1e19602783f9b4534a3312494eacf18a, type: 2}
   _glow: {fileID: 1759444199}
+  _shipRenderer: {fileID: 0}
 --- !u!114 &577677386
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9803,81 +9897,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1620606802}
   m_CullTransparentMesh: 1
---- !u!1 &1730023002
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1730023004}
-  - component: {fileID: 1730023003}
-  m_Layer: 0
-  m_Name: EnemySpawner
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1730023003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1730023002}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 921afb3ad1a0847308dacb2f27a5140c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.EnemySpawner
-  _config: {fileID: 11400000, guid: 13b020734d17b4884bae9bd685723435, type: 2}
-  _entries:
-  - Prefab: {fileID: 2276216332114955974, guid: c6675b80332d84115a2949775d84f21b, type: 3}
-    Weight: 1
-    GroupMin: 1
-    GroupMax: 1
-    GroupSpread: 0
-    MinSongProgress: 0
-    Channel: 1
-    MusicInfluence: 0.5
-    MaxAlive: 0
-  - Prefab: {fileID: 4476473314769462238, guid: 2c8a5ddadfd1749f8b7204f5ba94d554, type: 3}
-    Weight: 0.25
-    GroupMin: 1
-    GroupMax: 1
-    GroupSpread: 0
-    MinSongProgress: 0.2
-    Channel: 2
-    MusicInfluence: 0.85
-    MaxAlive: 4
-  - Prefab: {fileID: 8779410442572408450, guid: 94efb30348a6d4df4a360b1dc2cfa369, type: 3}
-    Weight: 0.5
-    GroupMin: 6
-    GroupMax: 10
-    GroupSpread: 1.8
-    MinSongProgress: 0.35
-    Channel: 3
-    MusicInfluence: 0.85
-    MaxAlive: 0
-  _enemyPrefab: {fileID: 2276216332114955974, guid: c6675b80332d84115a2949775d84f21b, type: 3}
-  _player: {fileID: 577677374}
---- !u!4 &1730023004
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1730023002}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1759444197
 GameObject:
   m_ObjectHideFlags: 0
@@ -10533,6 +10552,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2086037215}
   - component: {fileID: 2086037214}
+  - component: {fileID: 2086037216}
   m_Layer: 0
   m_Name: FeedbackCamera
   m_TagString: Untagged
@@ -10606,6 +10626,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2086037216
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2086037213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &2093766039
 GameObject:
   m_ObjectHideFlags: 0
@@ -10858,5 +10922,5 @@ SceneRoots:
   - {fileID: 47583138}
   - {fileID: 578479896}
   - {fileID: 950891380}
-  - {fileID: 1730023004}
   - {fileID: 1533990075}
+  - {fileID: 161621014}

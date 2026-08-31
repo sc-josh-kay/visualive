@@ -114,6 +114,26 @@ namespace PlayVisualizer.Enemies
         [Tooltip("Fraction of flock cohesion lost at full treble (frantic scattering).")]
         [Range(0f, 1f)] public float TrebleCohesionLoss = 0.5f;
 
+        [Header("Dasher — charge → dash (spec10)")]
+        [Tooltip("Dash speed (units/sec) during the actual dash. Roam speed uses Speed above.")]
+        public float DashSpeed = 22f;
+        [Tooltip("Seconds of charge/telegraph before the dash launches (readable windup).")]
+        public float ChargeDuration = 0.45f;
+        [Tooltip("Seconds the dash lasts.")]
+        public float DashDuration = 0.35f;
+        [Tooltip("Seconds of recovery after a dash before roaming again.")]
+        public float RecoverDuration = 0.4f;
+        [Tooltip("Minimum seconds between dashes (cooldown after recover, so it can't chain every beat).")]
+        public float DashCooldown = 1.5f;
+        [Tooltip("World radius of the destructive trench the dash cuts through the paint.")]
+        public float DashConsumeRadius = 0.55f;
+        [Tooltip("How fast the dash eats the paint it passes over (per second, dt-scaled).")]
+        public float DashConsumeStrengthPerSecond = 9f;
+        [Tooltip("Bass → extra dash speed/length, as a fraction (bass = HOW powerful).")]
+        [Range(0f, 1.5f)] public float BassDashBoost = 0.6f;
+        [Tooltip("Bass → extra cut radius, as a fraction.")]
+        [Range(0f, 1.5f)] public float BassConsumeBoost = 0.5f;
+
         [Header("Swarm — turbulent tear")]
         [Tooltip("World radius of the turbulent-tear field each unit emits (displaces/stretches/eats " +
                  "the smoke along its motion). Nearby units are aggregated into shared zones.")]
@@ -122,5 +142,26 @@ namespace PlayVisualizer.Enemies
         [Tooltip("Extra per-unit consume rate at full agitation (treble/flux), as a fraction " +
                  "(1 = up to +100% shred rate on a high-treble section).")]
         [Range(0f, 3f)] public float AgitationConsumeBoost = 1.2f;
+
+        [Header("Splitter — shatter into fragments (spec10)")]
+        [Tooltip("Fewest fragments spawned on death.")]
+        [Min(0)] public int SplitCountMin = 2;
+        [Tooltip("Most fragments spawned on death (2–3). Only the parent splits — fragments never do.")]
+        [Min(0)] public int SplitCountMax = 3;
+        [Tooltip("Fragment size as a fraction of the parent's scale.")]
+        [Range(0.2f, 1f)] public float FragmentScale = 0.6f;
+        [Tooltip("How far from the death point fragments appear (world units).")]
+        public float SplitSpread = 1.0f;
+        [Tooltip("Outward 'pop' speed given to each fragment so it visibly bursts away from the shatter.")]
+        public float FragmentPopSpeed = 4f;
+        [Tooltip("Seconds a fragment coasts outward (AI suspended) after the shatter before it seeks.")]
+        public float FragmentCoastTime = 0.25f;
+        [Tooltip("World radius of the paint the shatter fractures/consumes.")]
+        public float SplitConsumeRadius = 1.4f;
+        [Tooltip("Strength of that fracture consume (0..1).")]
+        [Range(0f, 1f)] public float SplitConsumeStrength = 0.8f;
+        [Tooltip("Radius of the deep-purple accent burst on the shatter (the teal burst uses the death " +
+                 "explosion size).")]
+        public float ShatterBurstRadius = 2.2f;
     }
 }

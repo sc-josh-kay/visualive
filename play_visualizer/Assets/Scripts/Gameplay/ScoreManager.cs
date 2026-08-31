@@ -155,11 +155,12 @@ namespace PlayVisualizer.Gameplay
             ScoreChanged?.Invoke(Score);
         }
 
+#if UNITY_EDITOR
         // Phase 1-3 debug: on-screen coverage/score readout (matches the project's OnGUI-debug
-        // convention: MusicMapper, TestMode). Removed/replaced by the real HUD later.
+        // convention: MusicMapper, TestMode). Editor-only — compiled out of device builds so OnGUI
+        // never dispatches there. Replaced by the real HUD on device.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             VisualizerField field = VisualizerField.Instance;
             float coverage = field != null ? field.Coverage : 0f;
             float gain = field != null ? field.PlayerPaintGain : 1f;
@@ -170,5 +171,6 @@ namespace PlayVisualizer.Gameplay
                 $"COVERAGE {coverage * 100f:0}%   ·   PAINT {gain:0.00}   ·   +{ScoreRate:0}/s   ·   SCORE {Score}{combo}",
                 style);
         }
+#endif
     }
 }

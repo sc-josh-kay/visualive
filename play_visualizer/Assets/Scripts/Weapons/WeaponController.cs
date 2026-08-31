@@ -109,14 +109,16 @@ namespace PlayVisualizer.Weapons
             _weapons[_active].OnEquip();
         }
 
+#if UNITY_EDITOR
+        // Editor-only debug overlay: compiled out of device builds so OnGUI never dispatches there.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             if (_weapons == null || _weapons.Length == 0) return;
             var style = new GUIStyle(GUI.skin.label) { fontSize = 18 };
             style.normal.textColor = new Color(1f, 0.9f, 0.35f);
             GUI.Label(new Rect(20, 300, 520, 26),
                 $"WEAPON: {_weapons[_active].DisplayName.ToUpperInvariant()}   (Space to cycle)", style);
         }
+#endif
     }
 }

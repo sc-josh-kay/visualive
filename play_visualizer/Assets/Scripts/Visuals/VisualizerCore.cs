@@ -447,7 +447,7 @@ namespace PlayVisualizer.Visuals
 
         private static RenderTexture NewTarget(int w, int h)
         {
-            var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGBHalf)
+            var rt = new RenderTexture(w, h, 0, VisualFormat.Feedback)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear

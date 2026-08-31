@@ -61,6 +61,10 @@ namespace PlayVisualizer.Visuals
     /// </summary>
     public class KaleidoscopePattern : IVisualizerPattern
     {
+        // The frame rate the smoke params were tuned at. _DtScale normalizes the per-frame step to
+        // this, so any actual frame rate (e.g. the thermal governor's 30 fps) looks/plays the same.
+        private const float ReferenceFps = 60f;
+
         private readonly Material _smoke;
         private readonly Material _display;
         private readonly SmokePatternParams _p;
@@ -106,11 +110,21 @@ namespace PlayVisualizer.Visuals
             var center = new Vector4(vp.x, vp.y, 0f, 0f);
 
             float flow = Mathf.Lerp(_p.FlowMin, _p.FlowMax, s.Energy);
+
+            // Frame-rate independence: the smoke field is advected/faded/emitted ONCE per frame, so at
+            // 30 fps it would fade/advect/emit half as much per second as at the 60 fps it was tuned
+            // for — changing the look AND gameplay (coverage). _DtScale = dt × 60 makes the per-frame
+            // step integrate to the same amount per SECOND at any frame rate (clamped so a hitch can't
+            // blow up the step). The thermal governor's drop to 30 fps then feels identical to 60.
+            float dtScale = Mathf.Clamp(dt * ReferenceFps, 0f, 3f);
+
             // Persistence follows paint gain: painting (moving) keeps the smoke; not painting (still
             // or just hit) drops toward DissipateFade so the existing field actively clears. This is
             // what makes stillness AND hit-disruption VISIBLE — emission-scaling alone can't, because
-            // the field otherwise lingers for seconds.
-            float fade = Mathf.Lerp(_p.DissipateFade, Mathf.Lerp(_p.FadeMin, _p.FadeMax, s.Energy), paintGain);
+            // the field otherwise lingers for seconds. Fade is a per-frame MULTIPLIER, so frame-rate
+            // independence needs an exponent (fade^dtScale), not a linear scale.
+            float fade60 = Mathf.Lerp(_p.DissipateFade, Mathf.Lerp(_p.FadeMin, _p.FadeMax, s.Energy), paintGain);
+            float fade = Mathf.Pow(fade60, dtScale);
             float blob = Mathf.Lerp(_p.BlobRadiusMin, _p.BlobRadiusMax, s.Bass);
             float hue = Mathf.Repeat(s.SpectralCentroid * 0.5f + Time.time * _p.HueDrift, 1f);
             Color emit = Color.HSVToRGB(hue, _p.Saturation, 1f);
@@ -123,6 +137,7 @@ namespace PlayVisualizer.Visuals
             _smoke.SetFloat("_WarpFreq", _p.WarpFreq);
             _smoke.SetFloat("_WarpSpeed", _p.WarpSpeed);
             _smoke.SetFloat("_Fade", fade);
+            _smoke.SetFloat("_DtScale", dtScale);
             _smoke.SetFloat("_Hue", _p.HueSpeed * (0.5f + s.Energy) * dt);
             _smoke.SetColor("_EmitColor", emit);
             _smoke.SetFloat("_BlobRadius", blob);
@@ -235,7 +250,7 @@ namespace PlayVisualizer.Visuals
 
         private static RenderTexture NewRT(int w, int h)
         {
-            var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGBHalf)
+            var rt = new RenderTexture(w, h, 0, VisualFormat.Feedback)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear

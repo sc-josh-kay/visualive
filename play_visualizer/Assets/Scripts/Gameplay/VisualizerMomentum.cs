@@ -59,7 +59,11 @@ namespace PlayVisualizer.Gameplay
         private float _smoothedCoverage;
         private float _overdriveTimer;
         private float _cooldownTimer;
+        private int _overdriveCount; // how many Overdrives achieved this run — drives escalation
         private bool _hasCoverageSample;
+
+        /// <summary>Number of Overdrives achieved this run (each one makes the next a bit harder).</summary>
+        public int OverdriveCount => _overdriveCount;
 
         private void Awake()
         {
@@ -103,25 +107,28 @@ namespace PlayVisualizer.Gameplay
                 : 1f;
             _smoothedCoverage = Mathf.Lerp(_smoothedCoverage, coverage, k);
 
-            // Momentum response to coverage bands (§1). The rate ramps with DISTANCE from the
-            // threshold: near the threshold it drains/fills slowly, far from it (toward 0% / 100%
-            // coverage) it drains/fills near the configured max rate. RateRampPower shapes the curve.
+            // Momentum response to a SINGLE coverage threshold (§1): below it drains, above it fills,
+            // with the rate ramping to zero AT the threshold (no dead zone — it's the equilibrium).
+            // Escalation: the threshold rises and the fill rate drops with each Overdrive already
+            // achieved this run, so each successive Overdrive takes a little longer to reach.
+            float threshold = Mathf.Min(_config.MaxCoverageThreshold,
+                _config.CoverageThreshold + _config.ThresholdStepPerOverdrive * _overdriveCount);
+            float gainRate = Mathf.Max(_config.MinGainPerSecond,
+                _config.GainPerSecond - _config.GainStepPerOverdrive * _overdriveCount);
+
             float delta;
-            if (_smoothedCoverage < _config.DrainBelowCoverage)
+            if (_smoothedCoverage < threshold)
             {
-                float t = (_config.DrainBelowCoverage - _smoothedCoverage)
-                          / Mathf.Max(1e-4f, _config.DrainBelowCoverage);
+                float t = (threshold - _smoothedCoverage) / Mathf.Max(1e-4f, threshold);
                 t = Mathf.Pow(Mathf.Clamp01(t), _config.RateRampPower);
                 delta = -_config.DrainPerSecond * t;
             }
-            else if (_smoothedCoverage >= _config.FillAboveCoverage)
+            else
             {
-                float t = (_smoothedCoverage - _config.FillAboveCoverage)
-                          / Mathf.Max(1e-4f, 1f - _config.FillAboveCoverage);
+                float t = (_smoothedCoverage - threshold) / Mathf.Max(1e-4f, 1f - threshold);
                 t = Mathf.Pow(Mathf.Clamp01(t), _config.RateRampPower);
-                delta = _config.GainPerSecond * t;
+                delta = gainRate * t;
             }
-            else delta = 0f;
 
             if (IsOverdrive)
             {
@@ -156,6 +163,7 @@ namespace PlayVisualizer.Gameplay
             _overdriveTimer = _config.OverdriveDuration;
             OverdriveRemaining01 = 1f;
             Momentum = 0f; // reset; the player immediately starts building toward the next one (§3).
+            _overdriveCount++; // escalation: the next Overdrive is a little harder to reach.
         }
 
         private void ExitOverdrive()
@@ -173,6 +181,7 @@ namespace PlayVisualizer.Gameplay
             IsOverdrive = false;
             _overdriveTimer = 0f;
             _cooldownTimer = 0f;
+            _overdriveCount = 0; // fresh run → escalation back to the easy baseline
             OverdriveRemaining01 = 0f;
             OverdriveIntensity01 = 0f;
             _hasCoverageSample = false;

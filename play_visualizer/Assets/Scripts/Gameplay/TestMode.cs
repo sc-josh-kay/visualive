@@ -37,14 +37,16 @@ namespace PlayVisualizer.Gameplay
             }
         }
 
+#if UNITY_EDITOR
+        // Editor-only debug overlay: compiled out of device builds so OnGUI never dispatches there.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             style.normal.textColor = _invincible ? new Color(1f, 0.85f, 0.2f) : new Color(0.7f, 0.7f, 0.7f);
             GUI.Label(new Rect(20, 370, 520, 24),
                 _invincible ? "TEST MODE (invincible): ON  (T to toggle)" : "TEST MODE (invincible): OFF  (T to toggle)",
                 style);
         }
+#endif
     }
 }

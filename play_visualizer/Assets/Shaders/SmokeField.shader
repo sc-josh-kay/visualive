@@ -24,6 +24,7 @@ Shader "PlayVisualizer/SmokeField"
         _PopStrength ("Pop strength", Float) = 0
         _Treble ("Treble sparkle", Float) = 0
         _Time0 ("Time", Float) = 0
+        _DtScale ("Delta-time scale (dt × refFps)", Float) = 1
         _VacCount ("Vacuum count", Float) = 0
         _VacPull ("Vacuum inward pull", Float) = 0.028
         _VacSwirlAmt ("Vacuum swirl", Float) = 0.05
@@ -51,6 +52,7 @@ Shader "PlayVisualizer/SmokeField"
             float4 _Center, _EmitColor;
             float _Aspect, _Flow, _Swirl, _Warp, _WarpFreq, _WarpSpeed, _Fade, _Hue;
             float _BlobRadius, _RingRadius, _RingWidth, _BaseStrength, _PopStrength, _Treble, _Time0;
+            float _DtScale; // dt × reference-fps: makes advect/eat/emit per-second (frame-rate independent)
             float _VacCount, _VacPull, _VacSwirlAmt, _VacEat;
             float4 _Vacuums[VAC_MAX]; // (u, v, radiusV, strength)
             float _VacSwirl[VAC_MAX]; // signed swirl per vacuum
@@ -108,8 +110,10 @@ Shader "PlayVisualizer/SmokeField"
                 float2 tang = float2(-p.y, p.x) / max(d, 1e-4);
                 float2 wave = float2(sin(i.uv.y * _WarpFreq * 6.2831853 + _Time0 * _WarpSpeed),
                                      sin(i.uv.x * _WarpFreq * 6.2831853 - _Time0 * _WarpSpeed));
-                // Base advection offset (aspect space): outward from the player + swirl + warp.
-                float2 offset = -_Flow * p + tang * _Swirl + wave * _Warp;
+                // Base advection offset (aspect space): outward from the player + swirl + warp. Scaled
+                // by _DtScale so the per-frame advection integrates to the same motion per SECOND at
+                // any frame rate (30 fps advects twice as far per frame as 60, etc.).
+                float2 offset = (-_Flow * p + tang * _Swirl + wave * _Warp) * _DtScale;
 
                 // Vacuums (Corruptors): sample from further OUT + tangential → content is pulled IN
                 // and swirls toward the center, which then EATS (fades) what it draws in — a drain.
@@ -128,8 +132,8 @@ Shader "PlayVisualizer/SmokeField"
                         fo *= fo;
                         float2 dir = pv / max(dv, 1e-4);
                         float2 perp = float2(-dir.y, dir.x) * _VacSwirl[k];
-                        offset += (dir * _VacPull + perp * _VacSwirlAmt) * v.w * fo;
-                        eat *= saturate(1.0 - _VacEat * v.w * fo);
+                        offset += (dir * _VacPull + perp * _VacSwirlAmt) * v.w * fo * _DtScale;
+                        eat *= saturate(1.0 - _VacEat * v.w * fo * _DtScale);
                     }
                 }
 
@@ -163,10 +167,10 @@ Shader "PlayVisualizer/SmokeField"
                         // forward into a streak (anisotropic advection along the flow axis).
                         float2 stretch = -flow * (_TurbStretch * fl.z);
 
-                        offset += (flow * _TurbPush + churn * _TurbChurn + stretch) * (0.4 + agit) * fo;
+                        offset += (flow * _TurbPush + churn * _TurbChurn + stretch) * (0.4 + agit) * fo * _DtScale;
 
                         float ragged = fbm2(pz * 7.0 + seed - _Time0 * 0.6);
-                        eat *= saturate(1.0 - _TurbEat * (0.4 + agit) * fo * ragged);
+                        eat *= saturate(1.0 - _TurbEat * (0.4 + agit) * fo * ragged * _DtScale);
                     }
                 }
 
@@ -179,7 +183,9 @@ Shader "PlayVisualizer/SmokeField"
                 float blob = smoothstep(_BlobRadius, 0.0, d);
                 float ring = smoothstep(_RingWidth, 0.0, abs(d - _RingRadius));
                 float sparkle = _Treble * (0.5 + 0.5 * sin(d * 120.0 - _Time0 * 6.0));
-                float e = blob * _BaseStrength + ring * _PopStrength + blob * sparkle;
+                // Emission is deposited once per frame → scale by _DtScale so the paint added per
+                // SECOND is the same at any frame rate (otherwise 30 fps paints half as much).
+                float e = (blob * _BaseStrength + ring * _PopStrength + blob * sparkle) * _DtScale;
 
                 float3 emit = _EmitColor.rgb * e;
                 return fixed4(prev + emit, 1.0);

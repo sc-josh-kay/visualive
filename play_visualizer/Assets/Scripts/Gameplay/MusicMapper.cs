@@ -121,9 +121,10 @@ namespace PlayVisualizer.Gameplay
             _lvlEnergy = _lvlBass = _lvlTreble = _lvlFlux = 0.5f;
         }
 
+#if UNITY_EDITOR
+        // Editor-only debug overlay: compiled out of device builds so OnGUI never dispatches there.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             style.normal.textColor = _musicDriven ? new Color(0.3f, 1f, 0.6f) : new Color(1f, 0.5f, 0.5f);
             string label = _musicDriven
@@ -131,5 +132,6 @@ namespace PlayVisualizer.Gameplay
                 : "MUSIC-DRIVEN: OFF  (M to toggle)";
             GUI.Label(new Rect(20, 340, 520, 24), label, style);
         }
+#endif
     }
 }

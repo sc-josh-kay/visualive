@@ -12,12 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6447aecfa793949fcbc2628ff1824b57, type: 3}
   m_Name: OverdriveConfig
   m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Gameplay.OverdriveConfig
-  DrainBelowCoverage: 0.03
-  FillAboveCoverage: 0.04
+  CoverageThreshold: 0.04
   DrainPerSecond: 10
   GainPerSecond: 8
   RateRampPower: 1
   CoverageSmoothing: 0.4
+  ThresholdStepPerOverdrive: 0.05
+  MaxCoverageThreshold: 0.8
+  GainStepPerOverdrive: 1
+  MinGainPerSecond: 3
   OverdriveDuration: 10
   OverdriveCooldown: 10
   OverdriveTrailScale: 0.5

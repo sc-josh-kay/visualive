@@ -29,6 +29,13 @@ namespace PlayVisualizer.Gameplay
         [Tooltip("On-screen enemy cap at full intensity (song climax).")]
         public int FullMaxEnemies = 40;
 
+        [Header("Music-reactive composition (spec8)")]
+        [Tooltip("Seconds of smoothing on the spawn-composition channel levels, so composition " +
+                 "shifts by section rather than frame-to-frame.")]
+        public float SpawnCompositionSmoothing = 1.5f;
+        [Tooltip("Scales raw spectral flux into a 0..1 level for composition/formation weighting.")]
+        public float FluxScale = 4f;
+
         [Header("Energy → Spawn Rate (enemies/sec)")]
         public float SpawnRateMin = 0.2f;
         public float SpawnRateMax = 2f;

@@ -5,13 +5,34 @@ using PlayVisualizer.Audio;
 namespace PlayVisualizer.Visuals
 {
     /// <summary>How a queued splat affects the field.</summary>
-    public enum SplatMode { Paint, Consume }
+    public enum SplatMode { Paint, Consume, PaintRing }
 
     /// <summary>A transient distortion request (world space) — a ripple, no coverage.</summary>
     public struct DistortRequest
     {
         public Vector2 WorldPos;
         public float Strength;
+    }
+
+    /// <summary>A "black-hole" vacuum: pull + swirl the smoke inward at a point, then eat it.</summary>
+    public struct VacuumRequest
+    {
+        public Vector2 WorldPos;
+        public float WorldRadius;
+        public float Strength;  // 0..1 pull/eat intensity
+        public float Swirl;     // signed swirl direction/strength
+    }
+
+    /// <summary>
+    /// A "turbulent tear": a Swarm unit churning through the smoke — noisy directional displacement +
+    /// stretch + ragged consume. Many units are aggregated by the core into a few bounded zones.
+    /// </summary>
+    public struct TurbulenceRequest
+    {
+        public Vector2 WorldPos;
+        public float WorldRadius;
+        public float Agitation;   // 0..1 treble/flux-driven shred intensity
+        public Vector2 FlowDir;   // world-space direction the unit is moving (need not be normalized)
     }
 
     /// <summary>A single gameplay request to modify the visualizer field (world space).</summary>
@@ -56,6 +77,14 @@ namespace PlayVisualizer.Visuals
         /// </summary>
         public float PlayerPaintGain = 1f;
 
+        /// <summary>
+        /// Overdrive intensity (0..1), written by gameplay (VisualizerMomentum) and read by the
+        /// visualizer to lightly amplify its own effects (spec9 §13). Same write-by-gameplay /
+        /// read-by-visualizer channel as <see cref="PlayerPaintGain"/> — gameplay never touches
+        /// shaders. 0 = normal play.
+        /// </summary>
+        public float OverdriveIntensity = 0f;
+
         /// <summary>World position of the densest painted region — the point enemies seek (spec §4).</summary>
         public Vector2 HotWorldPos { get; private set; }
 
@@ -64,6 +93,59 @@ namespace PlayVisualizer.Visuals
 
         private readonly List<FieldSplat> _pending = new List<FieldSplat>();
         private readonly List<DistortRequest> _distorts = new List<DistortRequest>();
+        private readonly List<VacuumRequest> _vacuums = new List<VacuumRequest>();
+        private readonly List<TurbulenceRequest> _turbulence = new List<TurbulenceRequest>();
+
+        /// <summary>
+        /// A Corruptor "black hole": pull + swirl the smoke field inward at this point and eat it
+        /// (like water down a drain). Radius/strength grow with bass. Drained by the core into the
+        /// smoke pattern's advection. Reduces coverage (the eat), replacing the plain consume.
+        /// </summary>
+        public void Vacuum(Vector2 worldPos, float worldRadius, float strength, float swirl)
+        {
+            if (strength <= 0f || worldRadius <= 0f) return;
+            _vacuums.Add(new VacuumRequest
+            {
+                WorldPos = worldPos,
+                WorldRadius = worldRadius,
+                Strength = Mathf.Clamp01(strength),
+                Swirl = swirl
+            });
+        }
+
+        /// <summary>Hand queued vacuums to the core and clear them. Called once per frame.</summary>
+        public void DrainVacuums(List<VacuumRequest> dest)
+        {
+            dest.Clear();
+            dest.AddRange(_vacuums);
+            _vacuums.Clear();
+        }
+
+        /// <summary>
+        /// A Swarm unit "turbulent tear": it displaces, stretches, and raggedly consumes the smoke as
+        /// it moves through it. Emitted per unit; the core aggregates nearby units into a few bounded
+        /// turbulence zones (the advection array is capped), so this scales to the whole swarm.
+        /// Agitation (treble/flux) grows the shred; reduces coverage (the eat).
+        /// </summary>
+        public void Turbulence(Vector2 worldPos, float worldRadius, float agitation, Vector2 flowDir)
+        {
+            if (worldRadius <= 0f) return;
+            _turbulence.Add(new TurbulenceRequest
+            {
+                WorldPos = worldPos,
+                WorldRadius = worldRadius,
+                Agitation = Mathf.Clamp01(agitation),
+                FlowDir = flowDir
+            });
+        }
+
+        /// <summary>Hand queued turbulence requests to the core and clear them. Called once per frame.</summary>
+        public void DrainTurbulence(List<TurbulenceRequest> dest)
+        {
+            dest.Clear();
+            dest.AddRange(_turbulence);
+            _turbulence.Clear();
+        }
 
         /// <summary>
         /// Transiently DISTORT the visualizer at a world point (a ripple), WITHOUT adding coverage —
@@ -155,6 +237,25 @@ namespace PlayVisualizer.Visuals
                 Color = MusicColor.From(state),
                 Strength = Mathf.Max(0f, intensity),
                 Mode = SplatMode.Paint
+            });
+        }
+
+        /// <summary>
+        /// Deposit paint along an expanding RING (annulus) rather than a filled disc — the wavefront
+        /// of an Overdrive paint wave (spec9 §6). <paramref name="worldRadius"/> is the ring's current
+        /// radius; the band width is a shader constant (fraction of radius). Persists/advects/fades in
+        /// the field like any painted content. Color inherits the current musical moment.
+        /// </summary>
+        public void PaintRing(Vector2 worldPos, float worldRadius, float intensity, MusicState state)
+        {
+            if (intensity <= 0f || worldRadius <= 0f) return;
+            _pending.Add(new FieldSplat
+            {
+                WorldPos = worldPos,
+                WorldRadius = worldRadius,
+                Color = MusicColor.From(state),
+                Strength = Mathf.Max(0f, intensity),
+                Mode = SplatMode.PaintRing
             });
         }
 

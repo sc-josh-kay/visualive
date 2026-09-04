@@ -90,7 +90,7 @@ namespace PlayVisualizer.Gameplay
                 ? Mathf.Clamp01(VisualizerField.Instance.Coverage)
                 : 0f;
 
-            ScoreRate = _scorePerSecondMax * Mathf.Pow(coverage, _coverageExponent);
+            ScoreRate = _scorePerSecondMax * Mathf.Pow(coverage, _coverageExponent) * OverdriveScoreMultiplier;
             _scoreAccum += ScoreRate * dt;
 
             // Run stats.
@@ -112,6 +112,10 @@ namespace PlayVisualizer.Gameplay
             }
         }
 
+        /// <summary>Overdrive score multiplier (1 when inactive), stacked on top of the combo (spec9 §14).</summary>
+        private static float OverdriveScoreMultiplier =>
+            VisualizerMomentum.Instance != null ? VisualizerMomentum.Instance.ScoreMultiplier : 1f;
+
         /// <summary>Discrete bonus, e.g. an enemy kill on top of the coverage it restores.</summary>
         public void AddScore(int points)
         {
@@ -119,7 +123,7 @@ namespace PlayVisualizer.Gameplay
             {
                 return;
             }
-            _scoreAccum += points;
+            _scoreAccum += points * OverdriveScoreMultiplier;
             int newScore = (int)_scoreAccum;
             if (newScore != Score)
             {
@@ -151,11 +155,12 @@ namespace PlayVisualizer.Gameplay
             ScoreChanged?.Invoke(Score);
         }
 
+#if UNITY_EDITOR
         // Phase 1-3 debug: on-screen coverage/score readout (matches the project's OnGUI-debug
-        // convention: MusicMapper, TestMode). Removed/replaced by the real HUD later.
+        // convention: MusicMapper, TestMode). Editor-only — compiled out of device builds so OnGUI
+        // never dispatches there. Replaced by the real HUD on device.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             VisualizerField field = VisualizerField.Instance;
             float coverage = field != null ? field.Coverage : 0f;
             float gain = field != null ? field.PlayerPaintGain : 1f;
@@ -166,5 +171,6 @@ namespace PlayVisualizer.Gameplay
                 $"COVERAGE {coverage * 100f:0}%   ·   PAINT {gain:0.00}   ·   +{ScoreRate:0}/s   ·   SCORE {Score}{combo}",
                 style);
         }
+#endif
     }
 }

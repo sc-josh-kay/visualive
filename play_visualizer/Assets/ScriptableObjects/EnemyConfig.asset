@@ -18,13 +18,48 @@ MonoBehaviour:
   Scale: 0.8
   ScoreValue: 100
   ConsumeRadius: 1.6
-  ConsumeStrengthPerSecond: 8
+  ConsumeStrengthPerSecond: 15
   DeathPaintRadius: 1.6
   DeathPaintIntensity: 1.2
   PlayerChaseRadius: 4
-  TargetJitter: 2.5
-  SeparationRadius: 1.2
-  SeparationStrength: 1.5
+  TargetJitter: 6
+  SeparationRadius: 2.5
+  SeparationStrength: 2.5
   HitConsumeRadius: 1.8
   HitConsumeStrength: 1
   HitBurstDuration: 0.35
+  CorruptStartRadius: 0.8
+  CorruptMaxRadius: 4
+  CorruptGrowSeconds: 8
+  SwarmCohesionRadius: 3
+  SwarmCohesionStrength: 0.6
+  EnergySpeedInfluence: 0.4
+  BeatPulseScale: 0.18
+  BeatImpulse: 2
+  BassPulseScale: 0.3
+  BassLungeImpulse: 2.5
+  BassCorruptRadius: 0.35
+  TrebleJitter: 0.35
+  FluxAgitation: 0.35
+  TrebleCohesionLoss: 0.5
+  DashSpeed: 22
+  ChargeDuration: 0.45
+  DashDuration: 0.35
+  RecoverDuration: 0.4
+  DashCooldown: 1.5
+  DashConsumeRadius: 0.55
+  DashConsumeStrengthPerSecond: 9
+  BassDashBoost: 0.6
+  BassConsumeBoost: 0.5
+  TurbulenceRadius: 1.1
+  AgitationConsumeBoost: 1.2
+  SplitCountMin: 2
+  SplitCountMax: 3
+  FragmentScale: 0.6
+  SplitSpread: 1
+  FragmentPopSpeed: 4
+  FragmentCoastTime: 0.25
+  SplitConsumeRadius: 1.4
+  SplitConsumeStrength: 0.8
+  ShatterBurstRadius: 2.2
+  SplitterMaxAlive: 8

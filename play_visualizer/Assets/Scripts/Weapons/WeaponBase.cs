@@ -52,7 +52,9 @@ namespace PlayVisualizer.Weapons
         {
             if (_projectilePrefab == null) return null;
             spec.Direction = dir;
-            Projectile p = Instantiate(_projectilePrefab, ctx.MuzzlePosition, Quaternion.identity);
+            // Pooled: auto-fire otherwise Instantiate/Destroys many projectiles/sec (GC + hitches).
+            Projectile p = ProjectilePool.Instance.Get(_projectilePrefab, ctx.MuzzlePosition);
+            if (p == null) return null;
             p.Launch(spec);
             return p;
         }

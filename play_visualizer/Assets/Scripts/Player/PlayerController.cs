@@ -19,6 +19,10 @@ namespace PlayVisualizer.Player
                  "points UP (+Y) by default needs -90 to align its tip with the aim direction.")]
         [SerializeField] private float _spriteFacingOffset = -90f;
 
+        [Tooltip("Keeps the ship inside the visible screen. Padding (world units) is roughly the " +
+                 "ship's half-size so it never crosses the edge.")]
+        [SerializeField] private float _boundsPadding = 0.6f;
+
         private Rigidbody2D _rb;
         private PlayerInputReader _input;
         private Camera _camera;
@@ -64,7 +68,31 @@ namespace PlayVisualizer.Player
         private void FixedUpdate()
         {
             float speed = _config != null ? _config.MoveSpeed : 0f;
-            _rb.linearVelocity = _input.MoveInput * speed;
+            Vector2 velocity = _input.MoveInput * speed;
+
+            // Keep the ship inside the visible orthographic view: cancel outward velocity at the
+            // edges and hard-clamp the position as a safety net (handles aspect/size changes too).
+            if (_camera != null && _camera.orthographic)
+            {
+                float halfH = _camera.orthographicSize;
+                float halfW = halfH * _camera.aspect;
+                Vector3 c = _camera.transform.position;
+                float minX = c.x - halfW + _boundsPadding;
+                float maxX = c.x + halfW - _boundsPadding;
+                float minY = c.y - halfH + _boundsPadding;
+                float maxY = c.y + halfH - _boundsPadding;
+
+                Vector2 pos = _rb.position;
+                if ((pos.x <= minX && velocity.x < 0f) || (pos.x >= maxX && velocity.x > 0f)) velocity.x = 0f;
+                if ((pos.y <= minY && velocity.y < 0f) || (pos.y >= maxY && velocity.y > 0f)) velocity.y = 0f;
+
+                _rb.linearVelocity = velocity;
+                _rb.position = new Vector2(Mathf.Clamp(pos.x, minX, maxX), Mathf.Clamp(pos.y, minY, maxY));
+            }
+            else
+            {
+                _rb.linearVelocity = velocity;
+            }
         }
 
         private void UpdateAim()

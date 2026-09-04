@@ -15,6 +15,17 @@ namespace PlayVisualizer.Visuals
     /// </summary>
     public class VisualizerCore : MonoBehaviour
     {
+        /// <summary>Per-cell accumulator for aggregating swarm turbulence requests into zones.</summary>
+        private struct TurbAccum
+        {
+            public int Cx, Cy;
+            public int Count;
+            public Vector2 SumPos;
+            public Vector2 SumFlow;
+            public float MaxRadius;
+            public float MaxAgitation;
+        }
+
         [Header("Refs")]
         [SerializeField] private Camera _mainCamera;
         [SerializeField] private Transform _player;
@@ -65,7 +76,14 @@ namespace PlayVisualizer.Visuals
         private readonly CoverageSampler _coverage = new CoverageSampler();
         private readonly List<FieldSplat> _splatBuffer = new List<FieldSplat>();
         private readonly List<DistortRequest> _distortBuffer = new List<DistortRequest>();
+        private readonly List<VacuumRequest> _vacuumBuffer = new List<VacuumRequest>();
+        private readonly List<TurbulenceRequest> _turbulenceBuffer = new List<TurbulenceRequest>();
         private readonly SplatData _splatData = new SplatData();
+        private readonly VacuumData _vacuumData = new VacuumData();
+        private readonly TurbulenceData _turbulenceData = new TurbulenceData();
+        // Reusable scratch for aggregating swarm turbulence requests into zones (avoids per-frame GC).
+        private readonly Dictionary<long, int> _turbCells = new Dictionary<long, int>();
+        private readonly List<TurbAccum> _turbAccum = new List<TurbAccum>();
         private Material _splatMat;
         private int _active;
         private Material _displayMat;
@@ -130,6 +148,14 @@ namespace PlayVisualizer.Visuals
             float dt = Time.deltaTime;
             float intensity = _intensity.Update(s.Energy, dt);
 
+            // Overdrive (spec9 §13): lightly amplify the visualizer's own response while active. Read
+            // through VisualizerField so the render core never depends on gameplay directly. Kept
+            // small — the radial paint waves are the primary Overdrive visual, not this.
+            float overdrive = VisualizerField.Instance != null
+                ? Mathf.Clamp01(VisualizerField.Instance.OverdriveIntensity)
+                : 0f;
+            if (overdrive > 0f) intensity = Mathf.Min(1.5f, intensity + overdrive * 0.35f);
+
             // Ripples: advance, spawn on onset/beat at the player.
             _ripples.Update(dt);
             double dsp = AudioSettings.dspTime;
@@ -156,17 +182,19 @@ namespace PlayVisualizer.Visuals
 
             RippleData ripples = _ripples.Pack();
 
-            // Gameplay: pull queued enemy/player splats and the player's paint-gain throttle.
+            // Gameplay: pull queued enemy/player splats, vacuums, and the player's paint-gain throttle.
             BuildSplats();
+            BuildVacuums();
+            BuildTurbulence();
             float paintGain = VisualizerField.Instance != null
                 ? Mathf.Clamp01(VisualizerField.Instance.PlayerPaintGain)
                 : 1f;
 
             if (_fading)
             {
-                // Only the incoming pattern receives splats, so they aren't double-applied.
-                RenderPattern(_from, s, intensity, paintGain, dt, ripples, null, _targetA);
-                RenderPattern(_to, s, intensity, paintGain, dt, ripples, _splatData, _targetB);
+                // Only the incoming pattern receives splats/vacuums, so they aren't double-applied.
+                RenderPattern(_from, s, intensity, paintGain, dt, ripples, null, null, null, _targetA);
+                RenderPattern(_to, s, intensity, paintGain, dt, ripples, _splatData, _vacuumData, _turbulenceData, _targetB);
 
                 _fadeT += dt / Mathf.Max(0.01f, _fadeDuration);
                 _blendMat.SetTexture("_TexB", _targetB);
@@ -177,7 +205,7 @@ namespace PlayVisualizer.Visuals
             }
             else
             {
-                RenderPattern(_active, s, intensity, paintGain, dt, ripples, _splatData, _target);
+                RenderPattern(_active, s, intensity, paintGain, dt, ripples, _splatData, _vacuumData, _turbulenceData, _target);
             }
 
             if (_displayMat != null)
@@ -237,10 +265,119 @@ namespace PlayVisualizer.Visuals
                 Vector3 vp = _mainCamera.WorldToViewportPoint(sp.WorldPos);
                 float radiusV = orthoH > 0f ? sp.WorldRadius / orthoH : 0.05f;
                 _splatData.Splats[i] = new Vector4(vp.x, vp.y, radiusV, sp.Strength);
-                float mode = sp.Mode == SplatMode.Paint ? 1f : -1f;
+                // Shader mode: 1 = paint disc, -1 = consume, 2 = ring paint (Overdrive wavefront).
+                float mode = sp.Mode == SplatMode.PaintRing ? 2f
+                           : sp.Mode == SplatMode.Paint ? 1f
+                           : -1f;
                 _splatData.Colors[i] = new Vector4(sp.Color.r, sp.Color.g, sp.Color.b, mode);
             }
             _splatData.Count = n;
+        }
+
+        /// <summary>Drain vacuum (Corruptor) requests and convert them to viewport space for the smoke shader.</summary>
+        private void BuildVacuums()
+        {
+            _vacuumData.Count = 0;
+            VisualizerField field = VisualizerField.Instance;
+            if (field == null || _mainCamera == null)
+            {
+                return;
+            }
+
+            field.DrainVacuums(_vacuumBuffer);
+            if (_vacuumBuffer.Count == 0)
+            {
+                return;
+            }
+
+            float orthoH = _mainCamera.orthographic ? _mainCamera.orthographicSize * 2f : 1f;
+            int n = Mathf.Min(_vacuumBuffer.Count, VacuumData.Max);
+            for (int i = 0; i < n; i++)
+            {
+                VacuumRequest v = _vacuumBuffer[i];
+                Vector3 vp = _mainCamera.WorldToViewportPoint(v.WorldPos);
+                float radiusV = orthoH > 0f ? v.WorldRadius / orthoH : 0.1f;
+                _vacuumData.Vacuums[i] = new Vector4(vp.x, vp.y, radiusV, v.Strength);
+                _vacuumData.Swirl[i] = v.Swirl;
+            }
+            _vacuumData.Count = n;
+        }
+
+        /// <summary>
+        /// Drain per-unit Swarm turbulence requests and AGGREGATE them into at most
+        /// <see cref="TurbulenceData.Max"/> zones by coarse spatial-grid bucketing, so the (capped)
+        /// advection array scales to the whole swarm. Each occupied cell becomes one zone: merged
+        /// centroid, dominant flow, and peak agitation; the strongest cells win when there are more
+        /// occupied cells than slots. Converts to viewport space for the smoke shader.
+        /// </summary>
+        private void BuildTurbulence()
+        {
+            _turbulenceData.Count = 0;
+            VisualizerField field = VisualizerField.Instance;
+            if (field == null || _mainCamera == null)
+            {
+                return;
+            }
+
+            field.DrainTurbulence(_turbulenceBuffer);
+            if (_turbulenceBuffer.Count == 0)
+            {
+                return;
+            }
+
+            // Cell size ≈ a unit's turbulence radius, so nearby units share a zone. All swarm units
+            // use the same radius, so read it from the first request (fallback if degenerate).
+            float cell = Mathf.Max(0.25f, _turbulenceBuffer[0].WorldRadius);
+            _turbCells.Clear();
+            _turbAccum.Clear();
+            for (int i = 0; i < _turbulenceBuffer.Count; i++)
+            {
+                TurbulenceRequest r = _turbulenceBuffer[i];
+                int cx = Mathf.FloorToInt(r.WorldPos.x / cell);
+                int cy = Mathf.FloorToInt(r.WorldPos.y / cell);
+                long key = ((long)cx << 32) ^ (uint)cy;
+                if (!_turbCells.TryGetValue(key, out int idx))
+                {
+                    idx = _turbAccum.Count;
+                    _turbCells[key] = idx;
+                    _turbAccum.Add(new TurbAccum { Cx = cx, Cy = cy });
+                }
+                TurbAccum a = _turbAccum[idx];
+                a.Count++;
+                a.SumPos += r.WorldPos;
+                a.SumFlow += r.FlowDir;
+                a.MaxRadius = Mathf.Max(a.MaxRadius, r.WorldRadius);
+                a.MaxAgitation = Mathf.Max(a.MaxAgitation, r.Agitation);
+                _turbAccum[idx] = a;
+            }
+
+            // Keep the strongest cells (by unit count) if more than the slot cap.
+            if (_turbAccum.Count > TurbulenceData.Max)
+            {
+                _turbAccum.Sort((x, y) => y.Count.CompareTo(x.Count));
+            }
+
+            float orthoH = _mainCamera.orthographic ? _mainCamera.orthographicSize * 2f : 1f;
+            int n = Mathf.Min(_turbAccum.Count, TurbulenceData.Max);
+            for (int i = 0; i < n; i++)
+            {
+                TurbAccum a = _turbAccum[i];
+                Vector2 pos = a.SumPos / Mathf.Max(1, a.Count);
+                // A denser cell covers more ground — grow the zone modestly with cluster size (bounded).
+                float worldRadius = a.MaxRadius * Mathf.Min(1.6f, 1f + 0.15f * (a.Count - 1));
+
+                Vector3 vp = _mainCamera.WorldToViewportPoint(pos);
+                float radiusV = orthoH > 0f ? worldRadius / orthoH : 0.1f;
+
+                // A normalized world direction maps to the shader's aspect-corrected space unchanged
+                // (the shader re-applies aspect on x), so pass the normalized world flow directly.
+                Vector2 flow = a.SumFlow.sqrMagnitude > 1e-6f ? a.SumFlow.normalized : Vector2.zero;
+                float seed = Mathf.Repeat(a.Cx * 12.9898f + a.Cy * 78.233f, 100f);
+
+                _turbulenceData.Zones[i] = new Vector4(vp.x, vp.y, radiusV, a.MaxAgitation);
+                _turbulenceData.Flow[i] = new Vector4(flow.x, flow.y, a.MaxAgitation, seed);
+            }
+            _turbulenceData.Count = n;
         }
 
         private void HandleKeys()
@@ -262,11 +399,14 @@ namespace PlayVisualizer.Visuals
         }
 
         private void RenderPattern(int index, MusicState s, float intensity, float paintGain, float dt,
-            RippleData ripples, SplatData splats, RenderTexture target)
+            RippleData ripples, SplatData splats, VacuumData vacuums, TurbulenceData turbulence,
+            RenderTexture target)
         {
             IVisualizerPattern p = _patterns[index];
             p.UpdatePattern(s, intensity, paintGain, dt);
             p.InjectSplats(splats);
+            p.InjectVacuums(vacuums);
+            p.InjectTurbulence(turbulence);
             p.ApplyRipple(ripples);
             p.Render(null, target);
         }
@@ -307,7 +447,7 @@ namespace PlayVisualizer.Visuals
 
         private static RenderTexture NewTarget(int w, int h)
         {
-            var rt = new RenderTexture(w, h, 0, RenderTextureFormat.ARGBHalf)
+            var rt = new RenderTexture(w, h, 0, VisualFormat.Feedback)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear

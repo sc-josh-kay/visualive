@@ -31,7 +31,7 @@ namespace PlayVisualizer.Enemies
         public float ConsumeRadius = 1.6f;
 
         [Tooltip("How fast it eats coverage (per second). Applied as strength = this × deltaTime.")]
-        public float ConsumeStrengthPerSecond = 8f;
+        public float ConsumeStrengthPerSecond = 9.2f;
 
         [Header("Death — visualizer explosion (spec §8)")]
         [Tooltip("World radius of the color burst painted into the field when destroyed.")]
@@ -85,5 +85,86 @@ namespace PlayVisualizer.Enemies
 
         [Tooltip("Strength of that cohesion pull relative to the seek direction.")]
         public float SwarmCohesionStrength = 0.6f;
+
+        // ── Music reaction (spec8) ──────────────────────────────────────────────
+        // Bounded per-type reactions so each enemy has a musical personality without becoming
+        // unpredictable. Each type only uses the fields for its channel.
+
+        [Header("Music reaction — Color Eater (Energy/Beat)")]
+        [Tooltip("Energy → extra move speed, as a fraction (0.4 = up to +40% at full energy).")]
+        [Range(0f, 1f)] public float EnergySpeedInfluence = 0.4f;
+        [Tooltip("Visual scale bump on each beat (cosmetic; no collider change).")]
+        [Range(0f, 0.6f)] public float BeatPulseScale = 0.18f;
+        [Tooltip("Small forward speed nudge on a beat (units/sec, decays quickly). Along its heading.")]
+        public float BeatImpulse = 2f;
+
+        [Header("Music reaction — Corruptor (Bass)")]
+        [Tooltip("Bass → visual scale 'thump' (cosmetic).")]
+        [Range(0f, 0.8f)] public float BassPulseScale = 0.3f;
+        [Tooltip("Forward lunge speed on a bass onset (units/sec, decays). Along its heading.")]
+        public float BassLungeImpulse = 2.5f;
+        [Tooltip("Bass → temporary extra corruption radius, as a fraction of the current radius (bounded).")]
+        [Range(0f, 0.8f)] public float BassCorruptRadius = 0.35f;
+
+        [Header("Music reaction — Swarm (Treble/Flux)")]
+        [Tooltip("Treble → movement + visual jitter amplitude (bounded 'buzz').")]
+        [Range(0f, 1f)] public float TrebleJitter = 0.35f;
+        [Tooltip("Spectral flux → extra agitation on top of treble.")]
+        [Range(0f, 1f)] public float FluxAgitation = 0.35f;
+        [Tooltip("Fraction of flock cohesion lost at full treble (frantic scattering).")]
+        [Range(0f, 1f)] public float TrebleCohesionLoss = 0.5f;
+
+        [Header("Dasher — charge → dash (spec10)")]
+        [Tooltip("Dash speed (units/sec) during the actual dash. Roam speed uses Speed above.")]
+        public float DashSpeed = 22f;
+        [Tooltip("Seconds of charge/telegraph before the dash launches (readable windup).")]
+        public float ChargeDuration = 0.45f;
+        [Tooltip("Seconds the dash lasts.")]
+        public float DashDuration = 0.35f;
+        [Tooltip("Seconds of recovery after a dash before roaming again.")]
+        public float RecoverDuration = 0.4f;
+        [Tooltip("Minimum seconds between dashes (cooldown after recover, so it can't chain every beat).")]
+        public float DashCooldown = 1.5f;
+        [Tooltip("World radius of the destructive trench the dash cuts through the paint.")]
+        public float DashConsumeRadius = 0.55f;
+        [Tooltip("How fast the dash eats the paint it passes over (per second, dt-scaled).")]
+        public float DashConsumeStrengthPerSecond = 9f;
+        [Tooltip("Bass → extra dash speed/length, as a fraction (bass = HOW powerful).")]
+        [Range(0f, 1.5f)] public float BassDashBoost = 0.6f;
+        [Tooltip("Bass → extra cut radius, as a fraction.")]
+        [Range(0f, 1.5f)] public float BassConsumeBoost = 0.5f;
+
+        [Header("Swarm — turbulent tear")]
+        [Tooltip("World radius of the turbulent-tear field each unit emits (displaces/stretches/eats " +
+                 "the smoke along its motion). Nearby units are aggregated into shared zones.")]
+        public float TurbulenceRadius = 1.1f;
+
+        [Tooltip("Extra per-unit consume rate at full agitation (treble/flux), as a fraction " +
+                 "(1 = up to +100% shred rate on a high-treble section).")]
+        [Range(0f, 3f)] public float AgitationConsumeBoost = 1.2f;
+
+        [Header("Splitter — shatter into fragments (spec10)")]
+        [Tooltip("Fewest fragments spawned on death.")]
+        [Min(0)] public int SplitCountMin = 2;
+        [Tooltip("Most fragments spawned on death (2–3). Only the parent splits — fragments never do.")]
+        [Min(0)] public int SplitCountMax = 3;
+        [Tooltip("Fragment size as a fraction of the parent's scale.")]
+        [Range(0.2f, 1f)] public float FragmentScale = 0.6f;
+        [Tooltip("How far from the death point fragments appear (world units).")]
+        public float SplitSpread = 1.0f;
+        [Tooltip("Outward 'pop' speed given to each fragment so it visibly bursts away from the shatter.")]
+        public float FragmentPopSpeed = 4f;
+        [Tooltip("Seconds a fragment coasts outward (AI suspended) after the shatter before it seeks.")]
+        public float FragmentCoastTime = 0.25f;
+        [Tooltip("World radius of the paint the shatter fractures/consumes.")]
+        public float SplitConsumeRadius = 1.4f;
+        [Tooltip("Strength of that fracture consume (0..1).")]
+        [Range(0f, 1f)] public float SplitConsumeStrength = 0.8f;
+        [Tooltip("Radius of the deep-purple accent burst on the shatter (the teal burst uses the death " +
+                 "explosion size).")]
+        public float ShatterBurstRadius = 2.2f;
+        [Tooltip("Hard cap on total live Splitters (parents + fragments). A shatter spawns only as " +
+                 "many fragments as this allows, so the population can't balloon (perf).")]
+        [Min(1)] public int SplitterMaxAlive = 8;
     }
 }

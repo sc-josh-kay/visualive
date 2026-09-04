@@ -44,6 +44,18 @@ namespace PlayVisualizer.Visuals
         /// </summary>
         void InjectSplats(SplatData splats);
 
+        /// <summary>
+        /// Queue "black-hole" vacuums (Corruptors) that pull + swirl + eat the field in its advection.
+        /// No-op for patterns without a persistent advected field.
+        /// </summary>
+        void InjectVacuums(VacuumData vacuums);
+
+        /// <summary>
+        /// Queue "turbulent tears" (aggregated Swarm zones) that displace + stretch + raggedly eat the
+        /// field in its advection. No-op for patterns without a persistent advected field.
+        /// </summary>
+        void InjectTurbulence(TurbulenceData turbulence);
+
         /// <summary>Render the pattern into <paramref name="target"/>, optionally sampling the trail field.</summary>
         void Render(RenderTexture trailField, RenderTexture target);
 
@@ -61,7 +73,7 @@ namespace PlayVisualizer.Visuals
     public class SplatData
     {
         // Must match MAX_SPLATS in FieldSplat.shader.
-        public const int Max = 48;
+        public const int Max = 64;
 
         /// <summary>Per slot: (originU, originV, radiusV, strength).</summary>
         public Vector4[] Splats = new Vector4[Max];
@@ -78,5 +90,41 @@ namespace PlayVisualizer.Visuals
         /// <summary>Per slot: (originU, originV, radius, strength). Length = RippleSystem.Max.</summary>
         public Vector4[] Ripples;
         public float Width;
+    }
+
+    /// <summary>
+    /// Vacuum points (Corruptors) handed to a field pattern each frame. Positions/radii are in
+    /// viewport space; written by the core from <c>VisualizerField</c> requests.
+    /// </summary>
+    public class VacuumData
+    {
+        // Must match VAC_MAX in SmokeField.shader.
+        public const int Max = 6;
+
+        /// <summary>Per slot: (originU, originV, radiusV, strength).</summary>
+        public Vector4[] Vacuums = new Vector4[Max];
+
+        /// <summary>Per slot: signed swirl direction/strength.</summary>
+        public float[] Swirl = new float[Max];
+
+        public int Count;
+    }
+
+    /// <summary>
+    /// Aggregated Swarm turbulence zones handed to a field pattern each frame. Many swarm units are
+    /// bucketed into at most <see cref="Max"/> zones by the core; positions/radii/flow are in viewport
+    /// space. Must match TURB_MAX in SmokeField.shader.
+    /// </summary>
+    public class TurbulenceData
+    {
+        public const int Max = 6;
+
+        /// <summary>Per slot: (originU, originV, radiusV, agitation).</summary>
+        public Vector4[] Zones = new Vector4[Max];
+
+        /// <summary>Per slot: (flowX, flowY, stretch01, seed) — normalized viewport-space flow dir.</summary>
+        public Vector4[] Flow = new Vector4[Max];
+
+        public int Count;
     }
 }

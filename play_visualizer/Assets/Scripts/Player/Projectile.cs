@@ -44,13 +44,25 @@ namespace PlayVisualizer.Player
         private float _scale;
         private EnemyBase _homingTarget;
 
+        private ProjectilePool _pool;
+        private Projectile _prototype;
+        private float _despawnTime;
+        private bool _alive;
+
         private void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
             _rb.gravityScale = 0f;
         }
 
-        /// <summary>Launch with a full spec (weapons use this).</summary>
+        /// <summary>Set by the pool when this instance is created, so it can return itself.</summary>
+        internal void SetPool(ProjectilePool pool, Projectile prototype)
+        {
+            _pool = pool;
+            _prototype = prototype;
+        }
+
+        /// <summary>Launch with a full spec (weapons use this). Resets all per-shot state for reuse.</summary>
         public void Launch(ProjectileSpec spec)
         {
             if (_rb == null) _rb = GetComponent<Rigidbody2D>();
@@ -58,16 +70,31 @@ namespace PlayVisualizer.Player
             _spec = spec;
             _scale = spec.StartScale > 0f ? spec.StartScale : 1f;
             transform.localScale = Vector3.one * _scale;
+            _homingTarget = null;                       // reset (pooled instances are reused)
+            _despawnTime = Time.time + spec.Lifetime;
+            _alive = true;
 
             _rb.linearVelocity = spec.Direction.normalized * spec.Speed;
 
-            if (_visual != null) _visual.Configure(_rb, spec.Color);
+            if (_visual != null) _visual.Configure(_rb, spec.Color); // Configure clears the trail
 
-            Destroy(gameObject, spec.Lifetime);
+        }
+
+        /// <summary>Deactivate and return to the pool (or destroy if this wasn't pooled).</summary>
+        private void Despawn()
+        {
+            if (!_alive) return;
+            _alive = false;
+            if (_rb != null) _rb.linearVelocity = Vector2.zero;
+            if (_pool != null) _pool.Release(this, _prototype);
+            else Destroy(gameObject);
         }
 
         private void FixedUpdate()
         {
+            if (!_alive) return;
+            if (Time.time >= _despawnTime) { Despawn(); return; }
+
             float dt = Time.deltaTime;
 
             // Growth: expand over distance, up to a cap (Growth Stream).
@@ -96,6 +123,7 @@ namespace PlayVisualizer.Player
 
         private void OnTriggerEnter2D(Collider2D other)
         {
+            if (!_alive) return;
             if (other.TryGetComponent(out IDamageable damageable))
             {
                 int dmg = _spec.StartScale > 0f
@@ -117,7 +145,7 @@ namespace PlayVisualizer.Player
                     bloom.Play(_spec.Color);
                 }
 
-                Destroy(gameObject);
+                Despawn();
             }
         }
     }

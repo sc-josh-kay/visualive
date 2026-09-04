@@ -1,4 +1,5 @@
 using UnityEngine;
+using PlayVisualizer.Gameplay;
 using PlayVisualizer.Visuals;
 
 namespace PlayVisualizer.Player
@@ -53,6 +54,11 @@ namespace PlayVisualizer.Player
             float disruptMul = Mathf.SmoothStep(0f, 1f, 1f - _disrupt);
 
             float gain = moveGain * disruptMul;
+
+            // During Overdrive the movement trail steps back so it doesn't blow out on top of the
+            // radial emission — it becomes the secondary paint source (spec9 §5).
+            VisualizerMomentum momentum = VisualizerMomentum.Instance;
+            if (momentum != null) gain *= momentum.TrailPaintScale;
 
             if (VisualizerField.Instance != null)
             {

@@ -69,9 +69,11 @@ namespace PlayVisualizer.Audio
             }
         }
 
+#if UNITY_EDITOR
+        // Editor-only developer overlay (OnGUI + its Draw* helpers): compiled out of device builds so
+        // OnGUI never dispatches there.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             if (!_visible || _analyzer == null)
             {
                 return;
@@ -280,5 +282,6 @@ namespace PlayVisualizer.Audio
             GUI.DrawTexture(new Rect(x, y - 1f, width, 2f), Texture2D.whiteTexture);
             GUI.color = Color.white;
         }
+#endif
     }
 }

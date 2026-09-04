@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d43c8ac63c884d26a28e7ef5bb48e75, type: 3}
+  m_Name: DasherConfig
+  m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.EnemyConfig
+  Speed: 3.5
+  Health: 4
+  ContactDamage: 25
+  Scale: 1.1
+  ScoreValue: 250
+  ConsumeRadius: 1.6
+  ConsumeStrengthPerSecond: 12
+  DeathPaintRadius: 1.6
+  DeathPaintIntensity: 1.4
+  PlayerChaseRadius: 0
+  TargetJitter: 3
+  SeparationRadius: 3
+  SeparationStrength: 4
+  HitConsumeRadius: 1.6
+  HitConsumeStrength: 1
+  HitBurstDuration: 0.35
+  CorruptStartRadius: 0.8
+  CorruptMaxRadius: 4
+  CorruptGrowSeconds: 8
+  SwarmCohesionRadius: 3
+  SwarmCohesionStrength: 0.6
+  EnergySpeedInfluence: 0.4
+  BeatPulseScale: 0.18
+  BeatImpulse: 2
+  BassPulseScale: 0.3
+  BassLungeImpulse: 2.5
+  BassCorruptRadius: 0.35
+  TrebleJitter: 0.35
+  FluxAgitation: 0.35
+  TrebleCohesionLoss: 0.5
+  DashSpeed: 18
+  ChargeDuration: 0.45
+  DashDuration: 0.35
+  RecoverDuration: 0.4
+  DashCooldown: 1.5
+  DashConsumeRadius: 2
+  DashConsumeStrengthPerSecond: 100
+  BassDashBoost: 0.6
+  BassConsumeBoost: 0.5
+  TurbulenceRadius: 1.1
+  AgitationConsumeBoost: 1.2
+  SplitCountMin: 2
+  SplitCountMax: 3
+  FragmentScale: 0.6
+  SplitSpread: 1
+  FragmentPopSpeed: 4
+  FragmentCoastTime: 0.25
+  SplitConsumeRadius: 1.4
+  SplitConsumeStrength: 0.8
+  ShatterBurstRadius: 2.2
+  SplitterMaxAlive: 8

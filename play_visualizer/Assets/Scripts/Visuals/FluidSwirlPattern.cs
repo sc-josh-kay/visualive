@@ -110,6 +110,10 @@ namespace PlayVisualizer.Visuals
 
         public void InjectSplats(SplatData splats) { }
 
+        public void InjectVacuums(VacuumData vacuums) { }
+
+        public void InjectTurbulence(TurbulenceData turbulence) { }
+
         public void ApplyRipple(RippleData ripples)
         {
             if (ripples == null || ripples.Ripples == null || _display == null) return;

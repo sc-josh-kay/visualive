@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using PlayVisualizer.Audio;
+using PlayVisualizer.Gameplay;
 using PlayVisualizer.Player;
 
 namespace PlayVisualizer.Weapons
@@ -23,6 +24,9 @@ namespace PlayVisualizer.Weapons
         private PlayerController _controller;
         private WeaponBase[] _weapons;
         private int _active;
+        private int _startWeapon;  // the weapon equipped at spawn; excluded from the Overdrive reward
+        private bool _wasOverdrive; // rising-edge detector for the Overdrive weapon reward
+        private readonly List<int> _candidates = new List<int>(); // reusable, no per-switch alloc
 
         private void Awake()
         {
@@ -35,6 +39,7 @@ namespace PlayVisualizer.Weapons
             _weapons = found.ToArray();
 
             _active = 0;
+            _startWeapon = _active;
             if (_weapons.Length > 0) _weapons[_active].OnEquip();
         }
 
@@ -49,6 +54,13 @@ namespace PlayVisualizer.Weapons
             {
                 Cycle();
             }
+
+            // Overdrive reward: on the frame Overdrive begins, swap to a random new weapon. The manual
+            // Space / double-tap cycling stays available for testing.
+            VisualizerMomentum momentum = VisualizerMomentum.Instance;
+            bool overdrive = momentum != null && momentum.IsOverdrive;
+            if (overdrive && !_wasOverdrive) SwitchToRandom();
+            _wasOverdrive = overdrive;
 
             var ctx = new WeaponContext
             {
@@ -71,14 +83,42 @@ namespace PlayVisualizer.Weapons
             _weapons[_active].OnEquip();
         }
 
+        /// <summary>
+        /// Switch to a random weapon for the Overdrive reward: different from the current one AND
+        /// never the starting weapon (once you've earned an upgrade, you don't get handed the starter
+        /// back). Manual Space / double-tap cycling can still pass through the starter for testing.
+        /// </summary>
+        private void SwitchToRandom()
+        {
+            if (_weapons.Length <= 1) return;
+
+            _candidates.Clear();
+            for (int i = 0; i < _weapons.Length; i++)
+                if (i != _active && i != _startWeapon) _candidates.Add(i);
+
+            // Fallback for tiny weapon sets (e.g. only the starter + one other): if excluding both
+            // leaves nothing, allow any weapon that at least differs from the current one.
+            if (_candidates.Count == 0)
+                for (int i = 0; i < _weapons.Length; i++)
+                    if (i != _active) _candidates.Add(i);
+            if (_candidates.Count == 0) return;
+
+            int next = _candidates[Random.Range(0, _candidates.Count)];
+            _weapons[_active].OnUnequip();
+            _active = next;
+            _weapons[_active].OnEquip();
+        }
+
+#if UNITY_EDITOR
+        // Editor-only debug overlay: compiled out of device builds so OnGUI never dispatches there.
         private void OnGUI()
         {
-            if (Application.isMobilePlatform) return; // debug overlay: editor/desktop only
             if (_weapons == null || _weapons.Length == 0) return;
             var style = new GUIStyle(GUI.skin.label) { fontSize = 18 };
             style.normal.textColor = new Color(1f, 0.9f, 0.35f);
             GUI.Label(new Rect(20, 300, 520, 26),
                 $"WEAPON: {_weapons[_active].DisplayName.ToUpperInvariant()}   (Space to cycle)", style);
         }
+#endif
     }
 }

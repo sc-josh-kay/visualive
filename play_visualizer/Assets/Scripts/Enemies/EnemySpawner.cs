@@ -15,6 +15,9 @@ namespace PlayVisualizer.Enemies
     /// </summary>
     public class EnemySpawner : MonoBehaviour
     {
+        /// <summary>Musical character that biases an enemy type's prevalence (spec8).</summary>
+        public enum MusicChannel { None, Energy, Bass, Treble, Flux }
+
         [System.Serializable]
         public struct SpawnEntry
         {
@@ -28,6 +31,12 @@ namespace PlayVisualizer.Enemies
             [Tooltip("Song progress (0..1) this type unlocks at — so tougher/denser types appear " +
                      "later in the song.")]
             [Range(0f, 1f)] public float MinSongProgress;
+            [Tooltip("Musical character that biases this type's spawn weight (spec8).")]
+            public MusicChannel Channel;
+            [Tooltip("How strongly the channel biases the base weight. 0 = ignore, 0.8 = strong.")]
+            [Range(0f, 1f)] public float MusicInfluence;
+            [Tooltip("Max of this type alive at once. 0 = unlimited (e.g. cap Corruptors at 6).")]
+            [Min(0)] public int MaxAlive;
         }
 
         [SerializeField] private SpawnerConfig _config;
@@ -59,6 +68,45 @@ namespace PlayVisualizer.Enemies
 
         /// <summary>Song progress 0..1, set by the director. Gates which enemy types can spawn.</summary>
         public float SongProgress { get; set; } = 1f;
+
+        // Smoothed 0..1 musical channel levels (0.5 = neutral), set by the MusicMapper. They bias
+        // spawn composition and formation. Default neutral so weights = base until music drives them.
+        private float _chEnergy = 0.5f, _chBass = 0.5f, _chTreble = 0.5f, _chFlux = 0.5f;
+
+        /// <summary>Music composition levels (0..1) from the director. 0.5 = neutral (no bias).</summary>
+        public void SetMusicChannels(float energy, float bass, float treble, float flux)
+        {
+            _chEnergy = Mathf.Clamp01(energy);
+            _chBass = Mathf.Clamp01(bass);
+            _chTreble = Mathf.Clamp01(treble);
+            _chFlux = Mathf.Clamp01(flux);
+        }
+
+        /// <summary>Reset composition to neutral (music-driven mode off).</summary>
+        public void ResetMusicChannels() => _chEnergy = _chBass = _chTreble = _chFlux = 0.5f;
+
+        private float ChannelLevel(MusicChannel c)
+        {
+            switch (c)
+            {
+                case MusicChannel.Energy: return _chEnergy;
+                case MusicChannel.Bass: return _chBass;
+                case MusicChannel.Treble: return _chTreble;
+                case MusicChannel.Flux: return _chFlux;
+                default: return 0.5f;
+            }
+        }
+
+        /// <summary>Base weight biased by its musical channel (within the existing table).</summary>
+        private float EffectiveWeight(SpawnEntry e)
+        {
+            float w = e.Weight;
+            if (e.Channel != MusicChannel.None && e.MusicInfluence > 0f)
+            {
+                w *= Mathf.Lerp(1f - e.MusicInfluence, 1f + e.MusicInfluence, ChannelLevel(e.Channel));
+            }
+            return Mathf.Max(0f, w);
+        }
 
         private int EffectiveMax
         {
@@ -137,12 +185,42 @@ namespace PlayVisualizer.Enemies
             }
 
             int count = Random.Range(Mathf.Max(1, entry.GroupMin), Mathf.Max(1, entry.GroupMax) + 1);
-            Vector2 center = RandomSpawnPos();
+            SpawnGroup(entry, RandomSpawnPos(), count);
+        }
+
+        /// <summary>
+        /// Spawn a group with a simple music-driven FORMATION bias (spec8 §5): treble disperses and
+        /// bass tightens the clump, and high rhythmic energy arranges it as a wave/line facing the
+        /// player. Position-only — no formation-generation system.
+        /// </summary>
+        private void SpawnGroup(SpawnEntry entry, Vector2 center, int count)
+        {
+            float spread = entry.GroupSpread
+                * Mathf.Lerp(0.7f, 1.7f, _chTreble)   // treble → dispersed
+                * Mathf.Lerp(1.15f, 0.75f, _chBass);  // bass   → concentrated
+            bool wave = _chEnergy > 0.6f && count > 1;
+
+            Vector2 toPlayer = (Vector2)_player.position - center;
+            Vector2 perp = toPlayer.sqrMagnitude > 1e-4f
+                ? new Vector2(-toPlayer.y, toPlayer.x).normalized
+                : Vector2.right;
+
             for (int i = 0; i < count && _alive.Count < EffectiveMax; i++)
             {
-                Vector2 pos = entry.GroupSpread > 0f
-                    ? center + Random.insideUnitCircle * entry.GroupSpread
-                    : center;
+                Vector2 pos;
+                if (wave)
+                {
+                    float t = count > 1 ? (float)i / (count - 1) - 0.5f : 0f; // -0.5..0.5
+                    pos = center + perp * (t * spread * 2f);
+                }
+                else if (spread > 0f)
+                {
+                    pos = center + Random.insideUnitCircle * spread;
+                }
+                else
+                {
+                    pos = center;
+                }
                 SpawnAt(entry.Prefab, pos);
             }
         }
@@ -172,7 +250,7 @@ namespace PlayVisualizer.Enemies
             float total = 0f;
             for (int i = 0; i < _entries.Length; i++)
             {
-                if (IsEligible(_entries[i])) total += _entries[i].Weight;
+                if (IsEligible(_entries[i])) total += EffectiveWeight(_entries[i]);
             }
             if (total <= 0f) return false;
 
@@ -180,7 +258,7 @@ namespace PlayVisualizer.Enemies
             for (int i = 0; i < _entries.Length; i++)
             {
                 if (!IsEligible(_entries[i])) continue;
-                r -= _entries[i].Weight;
+                r -= EffectiveWeight(_entries[i]);
                 if (r <= 0f) { chosen = _entries[i]; return true; }
             }
             // Fallback to the last eligible entry (floating-point guard).
@@ -199,7 +277,20 @@ namespace PlayVisualizer.Enemies
 
         private bool IsEligible(SpawnEntry e)
         {
-            return e.Prefab != null && e.Weight > 0f && SongProgress >= e.MinSongProgress;
+            if (e.Prefab == null || e.Weight <= 0f || SongProgress < e.MinSongProgress) return false;
+            if (e.MaxAlive > 0 && CountAlive(e.Prefab.GetType()) >= e.MaxAlive) return false;
+            return true;
+        }
+
+        private int CountAlive(System.Type type)
+        {
+            int n = 0;
+            for (int i = 0; i < _alive.Count; i++)
+            {
+                EnemyBase a = _alive[i];
+                if (a != null && a.GetType() == type) n++;
+            }
+            return n;
         }
     }
 }

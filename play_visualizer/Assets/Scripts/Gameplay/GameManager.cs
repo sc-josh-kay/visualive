@@ -36,6 +36,10 @@ namespace PlayVisualizer.Gameplay
         [Tooltip("Repurposed as the live COVERAGE bar (was the health bar in the survival build).")]
         [FormerlySerializedAs("_healthFill")]
         [SerializeField] private Image _coverageFill;
+        [Tooltip("Visualizer Momentum bar (spec9 §15). Doubles as the Overdrive countdown while active.")]
+        [SerializeField] private Image _momentumFill;
+        [Tooltip("Label above the momentum bar; flips to 'OVERDRIVE' while active.")]
+        [SerializeField] private Text _momentumLabel;
 
         [Header("Results")]
         [FormerlySerializedAs("_gameOverPanel")]
@@ -104,6 +108,8 @@ namespace PlayVisualizer.Gameplay
                 _coverageFill.fillAmount = coverage;
             }
 
+            UpdateMomentumHud();
+
             if (State == GameState.Playing)
             {
                 CheckSongEnd();
@@ -114,6 +120,38 @@ namespace PlayVisualizer.Gameplay
                     StartCoroutine(EndSongRoutine());
                 }
 #endif
+            }
+        }
+
+        // Visualizer Momentum HUD (spec9 §15): the bar fills with momentum; during Overdrive it turns
+        // gold and drains as the Overdrive countdown, with the label flipping to "OVERDRIVE".
+        private static readonly Color MomentumColor = new Color(0f, 0.85f, 1f, 1f);      // cyan-ish
+        private static readonly Color OverdriveColor = new Color(1f, 0.78f, 0.1f, 1f);   // gold
+
+        private void UpdateMomentumHud()
+        {
+            VisualizerMomentum vm = VisualizerMomentum.Instance;
+            if (_momentumFill == null || vm == null) return;
+
+            if (vm.IsOverdrive)
+            {
+                _momentumFill.fillAmount = vm.OverdriveRemaining01;
+                _momentumFill.color = OverdriveColor;
+                if (_momentumLabel != null && _momentumLabel.text != "OVERDRIVE")
+                {
+                    _momentumLabel.text = "OVERDRIVE";
+                    _momentumLabel.color = OverdriveColor;
+                }
+            }
+            else
+            {
+                _momentumFill.fillAmount = vm.Momentum01;
+                _momentumFill.color = MomentumColor;
+                if (_momentumLabel != null && _momentumLabel.text != "MOMENTUM")
+                {
+                    _momentumLabel.text = "MOMENTUM";
+                    _momentumLabel.color = MomentumColor;
+                }
             }
         }
 

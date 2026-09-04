@@ -25,13 +25,32 @@ namespace PlayVisualizer.Enemies
         [Tooltip("Spark burst spawned when the enemy reaches the player (the 'puff of blackness'). " +
                  "Falls back to a plain consume if unset.")]
         [SerializeField] private CollisionBurst _collisionBurstPrefab;
+        [Tooltip("Child transform holding the procedural visual. Music pulses scale/offset THIS, " +
+                 "never the root (so the collider is never resized). Auto-found if unset.")]
+        [SerializeField] private Transform _visualRoot;
+        [Tooltip("Renderer of the procedural visual quad. Per-enemy shader uniforms are pushed to it " +
+                 "via a MaterialPropertyBlock (no per-enemy material instances). Auto-found if unset.")]
+        [SerializeField] private Renderer _visualRenderer;
 
         protected Rigidbody2D _rb;
-        protected SpriteRenderer _sprite;
         protected Transform _target;   // usually the player — the fallback steer target
         private AudioAnalyzer _analyzer;
+        private MaterialPropertyBlock _mpb;
         private int _health;
         private bool _dead;
+
+        /// <summary>The enemy's current music-driven color — inherited by its death explosion.</summary>
+        protected Color CurrentColor = Color.white;
+
+        // Cached base visual transform (music reactions modulate around these).
+        private Vector3 _baseVisualScale = Vector3.one;
+        private Vector3 _baseVisualPos = Vector3.zero;
+
+        // Shared music envelopes (decaying), so per-type reactions read a smooth pulse, not a flag.
+        /// <summary>1 on a beat, decaying to 0 (~0.18s). For rhythmic visual/movement pulses.</summary>
+        protected float BeatEnv { get; private set; }
+        /// <summary>Rises on a bass onset (by strength), decaying to 0 (~0.22s).</summary>
+        protected float BassOnsetEnv { get; private set; }
 
         // Per-enemy random offset on the smoke target, so a crowd doesn't converge on one point.
         private Vector2 _jitter;
@@ -73,7 +92,9 @@ namespace PlayVisualizer.Enemies
         protected virtual void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
-            _sprite = GetComponent<SpriteRenderer>();
+            if (_visualRenderer == null) _visualRenderer = GetComponentInChildren<Renderer>();
+            if (_visualRoot == null) _visualRoot = _visualRenderer != null ? _visualRenderer.transform : transform;
+            _mpb = new MaterialPropertyBlock();
             _rb.gravityScale = 0f;
             _rb.freezeRotation = true;
             _analyzer = FindFirstObjectByType<AudioAnalyzer>();
@@ -86,8 +107,83 @@ namespace PlayVisualizer.Enemies
                 _health = _config.Health;
                 transform.localScale = Vector3.one * _config.Scale;
             }
+            if (_visualRoot != null)
+            {
+                _baseVisualScale = _visualRoot.localScale;
+                _baseVisualPos = _visualRoot.localPosition;
+            }
+            BeatEnv = 0f;
+            BassOnsetEnv = 0f;
             RerollJitter();
             All.Add(this);
+        }
+
+        private void Update()
+        {
+            if (_dead || _config == null) return;
+
+            MusicState s = Music;
+            float dt = Time.deltaTime;
+
+            // Decaying music envelopes shared by the per-type visual/movement reactions.
+            BeatEnv = Mathf.Max(0f, BeatEnv - dt / 0.18f);
+            if (s != null && s.Beat) BeatEnv = 1f;
+            BassOnsetEnv = Mathf.Max(0f, BassOnsetEnv - dt / 0.22f);
+            if (s != null && s.BassOnset)
+            {
+                float strength = s.BassOnsetStrength > 0f ? Mathf.Clamp01(s.BassOnsetStrength) : 1f;
+                BassOnsetEnv = Mathf.Max(BassOnsetEnv, strength);
+            }
+
+            UpdateVisual(s, dt);
+        }
+
+        /// <summary>Per-type cosmetic reaction to the music (pulse/jitter). Modulates the VISUAL child.</summary>
+        protected virtual void UpdateVisual(MusicState s, float dt) { }
+
+        /// <summary>Set the visual child's scale as a multiplier of its base (cosmetic only).</summary>
+        protected void SetVisualScale(float multiplier)
+        {
+            if (_visualRoot != null) _visualRoot.localScale = _baseVisualScale * multiplier;
+        }
+
+        /// <summary>Offset the visual child in local space (cosmetic jitter; never moves the collider).</summary>
+        protected void SetVisualOffset(Vector2 localOffset)
+        {
+            if (_visualRoot != null) _visualRoot.localPosition = _baseVisualPos + (Vector3)localOffset;
+        }
+
+        /// <summary>
+        /// Set the visual child's BASE scale (which pulses then multiply). Use a non-uniform value
+        /// for per-enemy shape variety (e.g. an oblong black hole). Cosmetic; collider unchanged.
+        /// </summary>
+        protected void SetBaseVisualScale(Vector3 scale)
+        {
+            _baseVisualScale = scale;
+            if (_visualRoot != null) _visualRoot.localScale = scale;
+        }
+
+        /// <summary>Rotate the visual child in-plane (cosmetic; e.g. tilt an oblong/disk).</summary>
+        protected void SetVisualRotation(float degrees)
+        {
+            if (_visualRoot != null) _visualRoot.localRotation = Quaternion.Euler(0f, 0f, degrees);
+        }
+
+        /// <summary>Get the per-enemy property block (pre-loaded with current values) to set uniforms on.</summary>
+        protected MaterialPropertyBlock VisualBlock
+        {
+            get
+            {
+                if (_mpb == null) _mpb = new MaterialPropertyBlock();
+                if (_visualRenderer != null) _visualRenderer.GetPropertyBlock(_mpb);
+                return _mpb;
+            }
+        }
+
+        /// <summary>Push the property block back to the visual renderer.</summary>
+        protected void ApplyVisualBlock()
+        {
+            if (_visualRenderer != null && _mpb != null) _visualRenderer.SetPropertyBlock(_mpb);
         }
 
         protected virtual void OnDisable()
@@ -122,6 +218,18 @@ namespace PlayVisualizer.Enemies
         protected float DistanceToPlayer(Vector2 pos)
         {
             return _target != null ? Vector2.Distance(pos, _target.position) : float.PositiveInfinity;
+        }
+
+        /// <summary>Count live enemies of an exact type (e.g. to bound a self-replicating enemy).</summary>
+        protected static int CountAlive(System.Type type)
+        {
+            int n = 0;
+            for (int i = 0; i < All.Count; i++)
+            {
+                EnemyBase e = All[i];
+                if (e != null && e.GetType() == type) n++;
+            }
+            return n;
         }
 
         /// <summary>
@@ -251,7 +359,7 @@ namespace PlayVisualizer.Enemies
                 {
                     // The burst owns both the spark visual and the growing black-hole consume, and
                     // outlives this enemy (spawned slightly in front of the gameplay plane).
-                    Color c = _sprite != null ? _sprite.color : Color.white;
+                    Color c = CurrentColor;
                     var burst = Instantiate(_collisionBurstPrefab,
                         new Vector3(at.x, at.y, -0.1f), Quaternion.identity);
                     burst.Play(c, HitConsumeRadius, HitBurstDuration, HitConsumeStrength);
@@ -298,9 +406,15 @@ namespace PlayVisualizer.Enemies
             // The EXPLOSION is the payoff (spec7 §11): a persistent color burst painted into the field,
             // scaled by the music (Bass → radius, Energy → brightness, Beat → pulse) AND the combo, so
             // rapid kills produce dramatically bigger coverage bursts. Killing = the real way to paint.
+            // Overdrive boosts the persistent paint a kill generates (spec9 §14), stacking with combo.
+            float overdrivePaint = VisualizerMomentum.Instance != null
+                ? VisualizerMomentum.Instance.DeathPaintMultiplier
+                : 1f;
+
             Vector2 at = transform.position;
             float radius = DeathPaintRadius * (1f + 0.6f * bass) * (0.7f + 0.3f * mult);
-            float intensity = DeathPaintIntensity * (0.7f + 0.6f * energy) * (beat ? 1.3f : 1f) * (0.6f + 0.4f * mult);
+            float intensity = DeathPaintIntensity * (0.7f + 0.6f * energy) * (beat ? 1.3f : 1f)
+                              * (0.6f + 0.4f * mult) * overdrivePaint;
             if (VisualizerField.Instance != null)
             {
                 VisualizerField.Instance.Paint(at, radius, intensity, s);
@@ -308,11 +422,10 @@ namespace PlayVisualizer.Enemies
 
             // The energetic initial flash — the firework in the enemy's own color, VISUAL ONLY (no
             // consume), which the persistent paint above settles behind.
-            Color c = _sprite != null ? _sprite.color : Color.white;
+            Color c = CurrentColor;
             if (_collisionBurstPrefab != null)
             {
-                var burst = Instantiate(_collisionBurstPrefab, new Vector3(at.x, at.y, -0.1f), Quaternion.identity);
-                burst.Play(c, radius * 1.1f, 0.4f, 0f); // consumeStrength 0 → paints nothing
+                SpawnCollisionBurst(at, c, radius * 1.1f, 0.4f, 0f); // consumeStrength 0 → paints nothing
             }
             else if (_deathPopPrefab != null)
             {
@@ -320,7 +433,30 @@ namespace PlayVisualizer.Enemies
                 pop.Play(c);
             }
 
+            // Per-type death behaviour (e.g. the Splitter shattering into fragments). Runs while the
+            // enemy still exists, at the death position, before it is destroyed.
+            OnDeath(at, s);
+
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// Hook for per-type death behaviour, called from <see cref="Die"/> after the death paint/flash
+        /// and before the object is destroyed. Default does nothing. Subclasses (e.g. Splitter) override
+        /// to spawn children, consume paint, etc.
+        /// </summary>
+        protected virtual void OnDeath(Vector2 at, MusicState s) { }
+
+        /// <summary>
+        /// Spawn a CollisionBurst firework (the hashed radial spark effect) at a point — reusable by
+        /// subclasses for extra death accents (e.g. the Splitter's deep-purple shatter). No-op if the
+        /// prefab isn't assigned. consumeStrength &gt; 0 also scoops paint (a "puff of blackness").
+        /// </summary>
+        protected void SpawnCollisionBurst(Vector2 at, Color color, float radius, float duration, float consumeStrength)
+        {
+            if (_collisionBurstPrefab == null) return;
+            var burst = Instantiate(_collisionBurstPrefab, new Vector3(at.x, at.y, -0.1f), Quaternion.identity);
+            burst.Play(color, radius, duration, consumeStrength);
         }
     }
 }

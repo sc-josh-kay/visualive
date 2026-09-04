@@ -160,8 +160,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Enemies.DasherVisualizer
   _lineMaterial: {fileID: 2100000, guid: cf9b1803d1f95463b94b1c6bd2cd12fa, type: 2}
-  _wavePoints: 40
+  _wavePoints: 32
   _waveCount: 3
+  _updateHz: 30
   _lineWidth: 0.05
   _arrowLength: 0.42
   _arrowHalfWidth: 0.22

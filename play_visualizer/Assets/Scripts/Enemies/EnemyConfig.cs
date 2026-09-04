@@ -163,5 +163,8 @@ namespace PlayVisualizer.Enemies
         [Tooltip("Radius of the deep-purple accent burst on the shatter (the teal burst uses the death " +
                  "explosion size).")]
         public float ShatterBurstRadius = 2.2f;
+        [Tooltip("Hard cap on total live Splitters (parents + fragments). A shatter spawns only as " +
+                 "many fragments as this allows, so the population can't balloon (perf).")]
+        [Min(1)] public int SplitterMaxAlive = 8;
     }
 }

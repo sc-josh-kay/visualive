@@ -14,10 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayVisualizer.Gameplay.SongLibrary
   Tracks:
   - {fileID: 8300000, guid: 2dcdd18f56c6641b0b5eac5327f8e367, type: 3}
+  - {fileID: 8300000, guid: 2a251826bba1b47aca5b4d145cc02c37, type: 3}
+  - {fileID: 8300000, guid: cc9e94ded338b445ea80ae0bf04b96aa, type: 3}
+  - {fileID: 8300000, guid: 44351c822cbb94a59aa109b337b36c15, type: 3}
+  - {fileID: 8300000, guid: 20ee9ca212bd04dc489c68be949baaec, type: 3}
+  - {fileID: 8300000, guid: 776a793e16c3b42e2b08d4e7943f495e, type: 3}
+  - {fileID: 8300000, guid: e563b28080769407c89e834b5833108e, type: 3}
   - {fileID: 8300000, guid: 7f83e8903b1a64e3aac43d40294cb02b, type: 3}
+  - {fileID: 8300000, guid: 11f9088290a31473d84079050c737a02, type: 3}
+  - {fileID: 8300000, guid: 1056eba87ca674fe5bdbf58cd55fc29a, type: 3}
   - {fileID: 8300000, guid: 1b0353836fa3e406596678027c864e34, type: 3}
+  - {fileID: 8300000, guid: e607941cb884443aaa11230bc4d430c3, type: 3}
+  - {fileID: 8300000, guid: 58d4ae7e1533b48a3b2ea29858d43de4, type: 3}
+  - {fileID: 8300000, guid: d803cc97207ef4d04b0cac6d66bc286f, type: 3}
   - {fileID: 8300000, guid: b9c91e64166ec4695b0423342c83ee8d, type: 3}
   - {fileID: 8300000, guid: 224f13d050f1c4a74982b5c82b066c82, type: 3}
   - {fileID: 8300000, guid: 1fdf50ca9de624fc68c67ea432ea2c54, type: 3}
   - {fileID: 8300000, guid: da7f1b9da7689425ea238b1f1b2d41a6, type: 3}
+  - {fileID: 8300000, guid: 8a62ddd5bf1374f4182eedce26c90dbe, type: 3}
+  - {fileID: 8300000, guid: c5affbf411e5d42cba7b989fd1384a63, type: 3}
+  - {fileID: 8300000, guid: f7e6cb82063bc4744973a3036a994d82, type: 3}
+  - {fileID: 8300000, guid: f885feb4ea8da45a98129abf80d8820f, type: 3}
+  - {fileID: 8300000, guid: 027a5be9d83314589a0c58b00a1de494, type: 3}
   - {fileID: 8300000, guid: 7be918ac33f044749bca52063c9cad9a, type: 3}

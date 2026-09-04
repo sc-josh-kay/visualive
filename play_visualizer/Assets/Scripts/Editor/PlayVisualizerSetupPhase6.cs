@@ -46,7 +46,7 @@ namespace PlayVisualizer.EditorTools
                 c.ConsumeRadius = 1.0f; c.ConsumeStrengthPerSecond = 6.9f;
                 c.DeathPaintRadius = 3.5f; c.DeathPaintIntensity = 2.5f;
                 c.PlayerChaseRadius = 0f; c.TargetJitter = 1.5f;
-                c.SeparationRadius = 2.0f; c.SeparationStrength = 1.0f;
+                c.SeparationRadius = 5.0f; c.SeparationStrength = 2.0f;
                 c.HitConsumeRadius = 2.5f; c.HitConsumeStrength = 1f; c.HitBurstDuration = 0.5f;
                 c.CorruptStartRadius = 0.8f; c.CorruptMaxRadius = 4.5f; c.CorruptGrowSeconds = 9f;
             });

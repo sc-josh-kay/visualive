@@ -81,9 +81,15 @@ namespace PlayVisualizer.Enemies
             // Deep-purple accent burst layered over the teal death firework → the teal+purple shatter.
             SpawnCollisionBurst(at, DeepPurple, _config.ShatterBurstRadius, 0.45f, 0f);
 
-            // Shatter into 2–3 fragments that burst outward from the death point.
+            // Shatter into 2–3 fragments that burst outward from the death point — but never past the
+            // total Splitter cap (this parent is about to be destroyed, so it frees one slot). Bounds
+            // the self-replication so the population (and its per-frame visual cost) can't balloon.
             if (_fragmentPrefab == null) return;
-            int count = Random.Range(_config.SplitCountMin, _config.SplitCountMax + 1);
+            int desired = Random.Range(_config.SplitCountMin, _config.SplitCountMax + 1);
+            int aliveExcludingSelf = CountAlive(typeof(Splitter)) - 1;
+            int slots = Mathf.Max(0, _config.SplitterMaxAlive - aliveExcludingSelf);
+            int count = Mathf.Min(desired, slots);
+            if (count <= 0) return;
             float fragScale = _config.Scale * _config.FragmentScale;
             for (int i = 0; i < count; i++)
             {

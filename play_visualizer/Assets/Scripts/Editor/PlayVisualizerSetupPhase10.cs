@@ -48,13 +48,13 @@ namespace PlayVisualizer.EditorTools
             {
                 c.Speed = 3.5f; c.Health = 4; c.Scale = 1.1f; c.ScoreValue = 250;
                 c.DeathPaintRadius = 1.6f; c.DeathPaintIntensity = 1.4f;
-                c.PlayerChaseRadius = 0f; c.TargetJitter = 1.0f;
-                c.SeparationRadius = 1.0f; c.SeparationStrength = 1.0f;
+                c.PlayerChaseRadius = 0f; c.TargetJitter = 3.0f;
+                c.SeparationRadius = 3.0f; c.SeparationStrength = 4.0f;
                 c.HitConsumeRadius = 1.6f; c.HitConsumeStrength = 1f; c.HitBurstDuration = 0.35f;
                 // Dasher (spec10):
                 c.DashSpeed = 18f; c.ChargeDuration = 0.45f; c.DashDuration = 0.35f;
                 c.RecoverDuration = 0.4f; c.DashCooldown = 1.5f;
-                c.DashConsumeRadius = 0.55f; c.DashConsumeStrengthPerSecond = 20f;
+                c.DashConsumeRadius = 0.8f; c.DashConsumeStrengthPerSecond = 24f;
                 c.BassDashBoost = 0.6f; c.BassConsumeBoost = 0.5f;
             });
 
@@ -65,14 +65,15 @@ namespace PlayVisualizer.EditorTools
                 c.Speed = 2.2f; c.Health = 2; c.Scale = 1.65f; c.ScoreValue = 120; // a tad > Corruptor (1.5)
                 c.ConsumeRadius = 0.7f; c.ConsumeStrengthPerSecond = 12f;
                 c.DeathPaintRadius = 1.4f; c.DeathPaintIntensity = 1.2f;
-                c.PlayerChaseRadius = 0f; c.TargetJitter = 2.0f;
-                c.SeparationRadius = 1.2f; c.SeparationStrength = 1.2f;
+                c.PlayerChaseRadius = 0f; c.TargetJitter = 5.0f;
+                c.SeparationRadius = 2.5f; c.SeparationStrength = 1.8f;
                 c.HitConsumeRadius = 1.4f; c.HitConsumeStrength = 0.9f; c.HitBurstDuration = 0.3f;
                 // Splitter (spec10):
                 // Fragment absolute size ≈ Scale × FragmentScale (1.65 × 0.36 ≈ 0.59, unchanged).
                 c.SplitCountMin = 2; c.SplitCountMax = 3; c.FragmentScale = 0.36f;
                 c.SplitSpread = 1.0f; c.FragmentPopSpeed = 4f; c.FragmentCoastTime = 0.25f;
                 c.SplitConsumeRadius = 1.4f; c.SplitConsumeStrength = 0.8f; c.ShatterBurstRadius = 2.2f;
+                c.SplitterMaxAlive = 8; // hard cap on total Splitters (parents + fragments)
             });
 
             EnemyBase splitter = BuildSplitterPrefab(PrefabDir + "/Splitter.prefab", splitterConfig, lineMat, deathPop, burst);

@@ -22,8 +22,11 @@ namespace PlayVisualizer.Enemies
         [SerializeField] private Material _lineMaterial; // additive vertex-color (EnergyTrail)
 
         [Header("Geometry")]
-        [SerializeField] private int _wavePoints = 40;
+        [SerializeField] private int _wavePoints = 32;
         [SerializeField] private int _waveCount = 3;
+        [Tooltip("Geometry rebuild rate (Hz). Line meshes rebuild at most this often (perf/future-" +
+                 "proofing). Kept high so the fast dash streak stays crisp.")]
+        [SerializeField] private float _updateHz = 30f;
         [SerializeField] private float _lineWidth = 0.05f;
         [SerializeField] private float _arrowLength = 0.42f;
         [SerializeField] private float _arrowHalfWidth = 0.22f;
@@ -58,6 +61,7 @@ namespace PlayVisualizer.Enemies
         private Phase _phase;
         private float _chargeT, _dashT;
         private Color _tint = Color.white;
+        private float _accum;
 
         public void SetDynamics(Phase phase, float chargeT, float dashT, Color tint)
         {
@@ -98,6 +102,12 @@ namespace PlayVisualizer.Enemies
 
         private void Update()
         {
+            // Throttle the (mesh-rebuilding) geometry update. Kept fast (30 Hz) for the dash streak.
+            _accum += Time.deltaTime;
+            float interval = 1f / Mathf.Max(1f, _updateHz);
+            if (_accum < interval) return;
+            _accum = 0f;
+
             MusicState s = AudioAnalyzer.Instance != null ? AudioAnalyzer.Instance.State : null;
             float bass = s != null ? Mathf.Clamp01(s.Bass) : 0f;
             float t = Time.time;

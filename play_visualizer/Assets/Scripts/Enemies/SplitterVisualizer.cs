@@ -17,9 +17,12 @@ namespace PlayVisualizer.Enemies
         [SerializeField] private Material _lineMaterial;
 
         [Header("Geometry")]
-        [SerializeField] private int _arcCount = 6;
-        [SerializeField] private int _pointsPerArc = 12;
+        [SerializeField] private int _arcCount = 5;
+        [SerializeField] private int _pointsPerArc = 8;
         [SerializeField] private float _lineWidth = 0.03f;
+        [Tooltip("Geometry rebuild rate (Hz). Line meshes rebuild at most this often (perf) — the " +
+                 "wobble is subtle so 24 Hz is imperceptible while cutting mesh rebuilds vs every frame.")]
+        [SerializeField] private float _updateHz = 24f;
         [SerializeField] private float _radius = 0.4f;
         [Tooltip("Angular width of each arc (radians). Smaller = bigger gaps between fragments.")]
         [SerializeField] private float _arcSpan = 0.7f;
@@ -46,6 +49,7 @@ namespace PlayVisualizer.Enemies
         private float[] _arcRot;      // per-arc angular offset (relative rotation drift)
         private float[] _arcJitterSeed;
         private float _flux;
+        private float _accum;
 
         private void Awake()
         {
@@ -81,9 +85,17 @@ namespace PlayVisualizer.Enemies
 
         private void Update()
         {
+            // Throttle the (mesh-rebuilding) geometry update — bounds per-Splitter cost, which matters
+            // because Splitters multiply. Use the real elapsed time as the step so motion is unchanged.
+            _accum += Time.deltaTime;
+            float interval = 1f / Mathf.Max(1f, _updateHz);
+            if (_accum < interval) return;
+            float step = _accum;
+            _accum = 0f;
+
             MusicState s = AudioAnalyzer.Instance != null ? AudioAnalyzer.Instance.State : null;
             float fluxRaw = s != null ? Mathf.Clamp01(s.SpectralFlux) : 0f;
-            _flux = Mathf.Lerp(_flux, fluxRaw, 1f - Mathf.Exp(-_fluxSmoothing * Time.deltaTime));
+            _flux = Mathf.Lerp(_flux, fluxRaw, 1f - Mathf.Exp(-_fluxSmoothing * step));
 
             float t = Time.time;
             float amp = Mathf.Lerp(_idleAmp, _idleAmp + _fluxAmp, _flux);
@@ -99,12 +111,14 @@ namespace PlayVisualizer.Enemies
             {
                 // Each fragment drifts in angle (relative rotation), faster with flux, alternating dir.
                 float dir = (i % 2 == 0) ? 1f : -1f;
-                _arcRot[i] += dir * (_rotSpeed + _fluxRotSpeed * _flux) * Mathf.Deg2Rad * Time.deltaTime;
+                _arcRot[i] += dir * (_rotSpeed + _fluxRotSpeed * _flux) * Mathf.Deg2Rad * step;
                 float baseAngle = i * (Mathf.PI * 2f / n) + _arcRot[i];
 
-                // Per-fragment jitter offset (the "struggling to stay together" wobble).
-                float jx = (Mathf.PerlinNoise(_arcJitterSeed[i], t * 6f) - 0.5f) * 2f * jitter;
-                float jy = (Mathf.PerlinNoise(t * 6f, _arcJitterSeed[i]) - 0.5f) * 2f * jitter;
+                // Per-fragment jitter (the "struggling to stay together" wobble) — cheap seeded sines
+                // instead of PerlinNoise, since this runs per arc per Splitter.
+                float seed = _arcJitterSeed[i];
+                float jx = jitter * Mathf.Sin(t * 3.1f + seed);
+                float jy = jitter * Mathf.Cos(t * 2.7f + seed * 1.3f);
 
                 for (int p = 0; p < _pointsPerArc; p++)
                 {

@@ -220,6 +220,18 @@ namespace PlayVisualizer.Enemies
             return _target != null ? Vector2.Distance(pos, _target.position) : float.PositiveInfinity;
         }
 
+        /// <summary>Count live enemies of an exact type (e.g. to bound a self-replicating enemy).</summary>
+        protected static int CountAlive(System.Type type)
+        {
+            int n = 0;
+            for (int i = 0; i < All.Count; i++)
+            {
+                EnemyBase e = All[i];
+                if (e != null && e.GetType() == type) n++;
+            }
+            return n;
+        }
+
         /// <summary>
         /// A steer-away push from nearby enemies (anti-clumping). Stronger the closer they are;
         /// zero beyond <paramref name="radius"/>. Cheap O(n²) over the live registry (n is small).
